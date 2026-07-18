@@ -51,3 +51,19 @@ def test_critical_console_routes_do_not_raise_server_errors(monkeypatch):
         response = client.post(route, json=body) if body is not None else client.post(route)
         assert response.status_code < 500, (route, response.get_data(as_text=True))
         assert response.is_json
+
+
+def test_mock_runtime_metadata_is_exposed_to_dashboard(monkeypatch):
+    monkeypatch.setenv("DRIVEFORT_ALLOW_MOCK", "1")
+    client = app.test_client()
+
+    config = client.get("/api/config").get_json()
+    health = client.get("/api/system/health").get_json()
+    snapshot = client.get("/api/state").get_json()
+
+    assert config["mock_actions_enabled"] is True
+    assert health["mock_actions_enabled"] is True
+    assert snapshot["runtime"]["mock_actions_enabled"] is True
+    assert snapshot["runtime"]["carla_optional"] is True
+    assert snapshot["runtime"]["source"] == "drivefort_synthetic_engine"
+    assert "synthetic engine is ready" in snapshot["lifecycle"]["detail"].lower()

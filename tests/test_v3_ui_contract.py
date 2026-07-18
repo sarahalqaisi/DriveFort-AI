@@ -56,3 +56,14 @@ def test_dashboard_uses_local_vendor_assets_without_external_cdns():
     ]
     for asset in required_assets:
         assert asset.exists() and asset.stat().st_size > 100
+
+
+def test_dashboard_presents_synthetic_runtime_without_fake_carla_claims():
+    html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+    js = (ROOT / "static" / "js" / "app.js").read_text(encoding="utf-8")
+
+    assert "Synthetic simulation is available locally" in html
+    assert "mock_actions_enabled" in js
+    assert "DriveFort Synthetic Engine Active" in js
+    assert "CARLA Optional" in js
+    assert "analytical simulation results" in js

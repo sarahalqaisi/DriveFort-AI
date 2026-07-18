@@ -28,12 +28,20 @@ driver_control_state = {
 }
 
 
+def _mock_runtime_enabled() -> bool:
+    return bool(
+        os.environ.get("PYTEST_CURRENT_TEST")
+        or os.environ.get(
+            "DRIVEFORT_ALLOW_MOCK",
+            os.environ.get("ZONEGUARD_ALLOW_MOCK", "0"),
+        ) == "1"
+    )
 
 
 def _live_carla_required(action_name: str = "dashboard action"):
     # In real dashboard runtime, mutating vehicle actions require a live CARLA actor.
     # During offline unit tests, preserve analytical/mock testability.
-    if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DRIVEFORT_ALLOW_MOCK", os.environ.get("ZONEGUARD_ALLOW_MOCK", "0")) == "1":
+    if _mock_runtime_enabled():
         return None
     live = bool(getattr(engine, "_carla_is_live", lambda: False)())
     if live:
@@ -71,6 +79,23 @@ def _snapshot_with_driver_control() -> dict:
     driver["drivefort_override"] = bool(driver.get("zoneguard_override"))
     snap["driver_control"] = driver
     snap["platform"] = BRAND.to_dict()
+
+    carla = snap.get("carla") or {}
+    carla_live = bool(carla.get("connected") and carla.get("actor_found"))
+    mock_enabled = _mock_runtime_enabled()
+    snap["runtime_mode"] = engine.mode
+    snap["runtime"] = {
+        "mode": engine.mode,
+        "mock_actions_enabled": mock_enabled,
+        "carla_optional": mock_enabled,
+        "source": (
+            "carla_live_actor"
+            if carla_live
+            else "drivefort_synthetic_engine"
+            if mock_enabled
+            else "analytical_locked"
+        ),
+    }
     snap["lifecycle"] = derive_system_phase(snap)
     return v3_features.enrich_snapshot(snap)
 
@@ -235,7 +260,12 @@ def index():
 @app.get("/api/config")
 def platform_config():
     """Stable platform metadata loaded once by clients and presentation tools."""
-    return jsonify({"platform": BRAND.to_dict(), "api_version": "v3", "runtime_mode": engine.mode})
+    return jsonify({
+        "platform": BRAND.to_dict(),
+        "api_version": "v3",
+        "runtime_mode": engine.mode,
+        "mock_actions_enabled": _mock_runtime_enabled(),
+    })
 
 
 @app.get("/api/system/health")
@@ -247,6 +277,7 @@ def system_health():
         "service": BRAND.name,
         "version": BRAND.version,
         "runtime_mode": engine.mode,
+        "mock_actions_enabled": _mock_runtime_enabled(),
         "carla_connected": bool(carla.get("connected")),
         "lifecycle": snapshot.get("lifecycle", {}),
     })

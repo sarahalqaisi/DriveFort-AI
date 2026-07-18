@@ -60,7 +60,11 @@ def derive_system_phase(snapshot: Mapping[str, Any]) -> Dict[str, Any]:
         detail = "The live vehicle is connected and operating under baseline monitoring."
     else:
         phase = "READY"
-        detail = "The platform is ready in analytical mode. Connect CARLA for live control."
+        runtime = snapshot.get("runtime") or {}
+        if runtime.get("mock_actions_enabled"):
+            detail = "The DriveFort synthetic engine is ready. CARLA is optional for high-fidelity validation."
+        else:
+            detail = "The platform is ready in analytical mode. Connect CARLA for live control."
 
     return {
         "phase": phase,

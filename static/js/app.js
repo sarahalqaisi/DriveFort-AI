@@ -257,15 +257,20 @@ function renderEvidence(snapshot) {
 // ── Main render ───────────────────────────────────────────────
 function render(snapshot) {
   const v = snapshot.vehicle || {}, r = snapshot.risks || {}, d = snapshot.defense_dashboard || {}, carla = snapshot.carla || {};
+  const runtime = snapshot.runtime || {};
   const attack = !!snapshot.attack?.active;
   const liveVehicle = hasLiveVehicle(carla);
-  const carlaState = liveVehicle ? 'connected' : (carla.connected ? 'partial' : 'disconnected');
-  const carlaLabel = liveVehicle ? 'Connected ✓' : (carla.connected ? 'Connected - No Vehicle' : 'Disconnected');
+  const syntheticMode = !liveVehicle && runtime.mock_actions_enabled === true;
+  const displayVehicle = liveVehicle || syntheticMode;
+  const carlaState = liveVehicle ? 'connected' : (syntheticMode ? 'partial' : (carla.connected ? 'partial' : 'disconnected'));
+  const carlaLabel = liveVehicle ? 'Connected ✓' : (syntheticMode ? 'Optional / Disconnected' : (carla.connected ? 'Connected - No Vehicle' : 'Disconnected'));
   const carlaDetail = liveVehicle
     ? `Vehicle linked: ${carla.vehicle_type || 'vehicle'} #${carla.vehicle_id ?? '--'} · ${carla.live_loop_running ? 'Live loop running' : 'Live loop stopped'}`
-    : (carla.connected
-      ? `CARLA server reachable on ${carla.host || 'localhost'}:${carla.port || 2000}, but no ego vehicle is linked. Press Connect + Spawn.`
-      : (carla.message || 'Simulator not connected yet. Start CARLA, then press Connect + Spawn.'));
+    : (syntheticMode
+      ? 'DriveFort Synthetic Engine is active. Connect CARLA only for high-fidelity vehicle validation.'
+      : (carla.connected
+        ? `CARLA server reachable on ${carla.host || 'localhost'}:${carla.port || 2000}, but no ego vehicle is linked. Press Connect + Spawn.`
+        : (carla.message || 'Simulator not connected yet. Start CARLA, then press Connect + Spawn.')));
 
   setText('carlaStatus', carlaLabel);
   setText('carlaConnectionLabel', carlaLabel);
@@ -276,41 +281,41 @@ function render(snapshot) {
   const riskOverall = Number(r.overall || 0);
   setText('threatLevelHero', r.threat_level || 'NORMAL');
   if ($('threatLevelHero')) $('threatLevelHero').style.color = riskColor(riskOverall);
-  setText('scenarioName', attack ? pretty(snapshot.attack.attack_name) : (liveVehicle ? 'Normal Drive' : 'Waiting for CARLA'));
+  setText('scenarioName', attack ? pretty(snapshot.attack.attack_name) : (liveVehicle ? 'Normal Drive' : (syntheticMode ? 'Synthetic Simulation Ready' : 'Waiting for CARLA')));
   setText('defenseMode', r.defense_mode || 'Defense Normal');
   const lifecycle = snapshot.lifecycle || {};
   setText('systemPhase', lifecycle.phase || 'READY');
   setText('railSystemPhase', lifecycle.phase || 'READY');
-  setText('actorBadge', carla.actor_found ? 'Vehicle Actor Ready' : 'Waiting For Vehicle');
-  setText('mapName', liveVehicle ? (carla.map_name || d.map?.label || 'CARLA Map') : 'CARLA not connected');
-  setText('zoneChip', liveVehicle ? pretty(v.zone_type || d.map?.zone || 'Urban') : 'Waiting');
+  setText('actorBadge', liveVehicle ? 'Vehicle Actor Ready' : (syntheticMode ? 'Synthetic Vehicle Active' : 'Waiting For Vehicle'));
+  setText('mapName', liveVehicle ? (carla.map_name || d.map?.label || 'CARLA Map') : (syntheticMode ? (d.map?.label || 'DriveFort Synthetic Map') : 'CARLA not connected'));
+  setText('zoneChip', displayVehicle ? pretty(v.zone_type || d.map?.zone || 'Urban') : 'Waiting');
 
-  setText('speedValue', metricValue(liveVehicle, v.speed_kmh));
-  setText('batteryValue', metricValue(liveVehicle, v.battery_soc));
-  setText('batteryTempValue', metricValue(liveVehicle, v.battery_temp_c));
-  setText('motorTempValue', metricValue(liveVehicle, v.motor_temp_c));
-  setText('riskValue', liveVehicle ? riskOverall.toFixed(3) : '—');
+  setText('speedValue', metricValue(displayVehicle, v.speed_kmh));
+  setText('batteryValue', metricValue(displayVehicle, v.battery_soc));
+  setText('batteryTempValue', metricValue(displayVehicle, v.battery_temp_c));
+  setText('motorTempValue', metricValue(displayVehicle, v.motor_temp_c));
+  setText('riskValue', displayVehicle ? riskOverall.toFixed(3) : '—');
 
-  setWidth('speedMeter', meterValue(liveVehicle, v.speed_kmh, 180));
-  setWidth('batteryMeter', liveVehicle ? (v.battery_soc || 0) : 0);
-  setWidth('batteryTempMeter', meterValue(liveVehicle, v.battery_temp_c, 120));
-  setWidth('motorTempMeter', meterValue(liveVehicle, v.motor_temp_c, 140));
-  setWidth('riskMeter', liveVehicle ? riskOverall * 100 : 0);
+  setWidth('speedMeter', meterValue(displayVehicle, v.speed_kmh, 180));
+  setWidth('batteryMeter', displayVehicle ? (v.battery_soc || 0) : 0);
+  setWidth('batteryTempMeter', meterValue(displayVehicle, v.battery_temp_c, 120));
+  setWidth('motorTempMeter', meterValue(displayVehicle, v.motor_temp_c, 140));
+  setWidth('riskMeter', displayVehicle ? riskOverall * 100 : 0);
 
-  setText('locationName', liveVehicle ? (v.location_label || d.map?.label || 'CARLA Route') : 'Waiting for live CARLA vehicle');
-  setText('coordX', liveVehicle ? Number(v.location_x || d.map?.lon || 0).toFixed(4) : '—');
-  setText('coordY', liveVehicle ? Number(v.location_y || d.map?.lat || 0).toFixed(4) : '—');
-  setText('headingValue', liveVehicle ? `${Math.round(v.heading_deg || 0)}°` : '—');
+  setText('locationName', displayVehicle ? (v.location_label || d.map?.label || (syntheticMode ? 'Synthetic Route' : 'CARLA Route')) : 'Waiting for live CARLA vehicle');
+  setText('coordX', displayVehicle ? Number(v.location_x || d.map?.lon || 0).toFixed(4) : '—');
+  setText('coordY', displayVehicle ? Number(v.location_y || d.map?.lat || 0).toFixed(4) : '—');
+  setText('headingValue', displayVehicle ? `${Math.round(v.heading_deg || 0)}°` : '—');
 
   $('attackBeam').classList.toggle('active', attack);
   $('mapCar').classList.toggle('attack', attack);
   $('riskRadius').classList.toggle('active', attack);
-  const mapX = liveVehicle ? clamp(48 + ((Number(v.location_x) || 0) % 1) * 35, 8, 92) : 50;
-  const mapY = liveVehicle ? clamp(50 - ((Number(v.location_y) || 0) % 1) * 35, 8, 92) : 50;
+  const mapX = displayVehicle ? clamp(48 + ((Number(v.location_x) || 0) % 1) * 35, 8, 92) : 50;
+  const mapY = displayVehicle ? clamp(50 - ((Number(v.location_y) || 0) % 1) * 35, 8, 92) : 50;
   $('mapCar').style.left = `${mapX}%`; $('mapCar').style.top = `${mapY}%`;
-  $('mapCar').style.transform = `translate(-50%,-50%) rotate(${liveVehicle ? Number(v.heading_deg || 25) : 0}deg)`;
+  $('mapCar').style.transform = `translate(-50%,-50%) rotate(${displayVehicle ? Number(v.heading_deg || 25) : 0}deg)`;
 
-  $('controlGrid').innerHTML = liveVehicle ? [
+  $('controlGrid').innerHTML = displayVehicle ? [
     mini('Autopilot', v.autopilot_enabled ? 'Enabled' : 'Manual'),
     mini('Throttle', `${Math.round((v.throttle || 0) * 100)}%`),
     mini('Brake', `${Math.round((v.brake || 0) * 100)}%`),
@@ -328,31 +333,35 @@ function render(snapshot) {
 
   // Telemetry grid
   const vt = snapshot.vehicle_telemetry || {}, bt = snapshot.battery_twin || {};
-  setText('telemetrySourceChip', liveVehicle ? (vt.source || 'CARLA live actor') : 'Waiting for CARLA');
-  setText('batteryTwinNote', liveVehicle ? (vt.note || bt.source || 'Battery digital twin monitoring.') : 'No live vehicle telemetry yet. Start CARLA first.');
+  setText('telemetrySourceChip', liveVehicle ? (vt.source || 'CARLA live actor') : (syntheticMode ? 'DriveFort Synthetic Engine' : 'Waiting for CARLA'));
+  setText('batteryTwinNote', displayVehicle ? (vt.note || bt.source || 'Battery digital twin monitoring.') : 'No live vehicle telemetry yet. Start CARLA first.');
   const tg = $('vehicleTelemetryGrid');
   if (tg) tg.innerHTML = [
-    mini('Speed', metricValue(liveVehicle, v.speed_kmh, ' km/h')),
-    mini('Coordinates', liveVehicle ? `${Number(v.location_x || 0).toFixed(4)}, ${Number(v.location_y || 0).toFixed(4)}` : '—'),
-    mini('Heading', metricValue(liveVehicle, v.heading_deg, '°')),
-    mini('Battery Charge', metricValue(liveVehicle, v.battery_soc, '%')),
-    mini('Battery Temp', metricValue(liveVehicle, v.battery_temp_c, '°C')),
-    mini('Motor Temp', metricValue(liveVehicle, v.motor_temp_c, '°C')),
-    mini('BMS Source', liveVehicle ? (bt.source || 'Digital Twin') : 'Waiting'),
-    mini('BMS Mode', liveVehicle ? (bt.tamper_mode || 'none') : '—'),
-    mini('Consumption Δ', liveVehicle ? `${bt.last_consumption_delta ?? '--'}%/tick` : '—'),
-    mini('CARLA Bound', liveVehicle ? 'Yes' : 'No')
+    mini('Speed', metricValue(displayVehicle, v.speed_kmh, ' km/h')),
+    mini('Coordinates', displayVehicle ? `${Number(v.location_x || 0).toFixed(4)}, ${Number(v.location_y || 0).toFixed(4)}` : '—'),
+    mini('Heading', metricValue(displayVehicle, v.heading_deg, '°')),
+    mini('Battery Charge', metricValue(displayVehicle, v.battery_soc, '%')),
+    mini('Battery Temp', metricValue(displayVehicle, v.battery_temp_c, '°C')),
+    mini('Motor Temp', metricValue(displayVehicle, v.motor_temp_c, '°C')),
+    mini('BMS Source', displayVehicle ? (bt.source || 'Digital Twin') : 'Waiting'),
+    mini('BMS Mode', displayVehicle ? (bt.tamper_mode || 'none') : '—'),
+    mini('Consumption Δ', displayVehicle ? `${bt.last_consumption_delta ?? '--'}%/tick` : '—'),
+    mini('Simulation Source', liveVehicle ? 'CARLA Live' : (syntheticMode ? 'Synthetic' : 'Unavailable'))
   ].join('');
 
   // Attacker console evidence
   const lastApply = carla.last_apply || {};
-  setText('attackerConsoleStatus', lastApply.attack_applied ? 'Applied to CARLA' : 'Armed');
+  setText('attackerConsoleStatus', lastApply.attack_applied ? 'Applied to CARLA' : (syntheticMode ? 'Synthetic Engine Armed' : 'Armed'));
   const ev = $('attackEvidence');
   if (ev) {
     const ctrl = lastApply.applied_control || {};
     const impact = lastApply.impact || carla.impact || {};
     const impactLabel = impact.active ? `${impact.verified ? 'verified collision' : 'impact target spawned'} · ${impact.target || 'target'} · ${impact.severity || 'critical'}` : 'no impact yet';
-    ev.innerHTML = `<strong>${attack ? pretty(snapshot.attack?.attack_name) : 'No active attack'}</strong><span>CARLA: ${lastApply.attack_applied ? 'physical control applied' : 'waiting'} · ${impactLabel} · steer ${Number(ctrl.steer || 0).toFixed(2)} · throttle ${Number(ctrl.throttle || 0).toFixed(2)} · brake ${Number(ctrl.brake || 0).toFixed(2)}</span><small>${impact.message || lastApply.diagnostic_notice || 'Select an attack and press Apply to CARLA.'}</small>`;
+    const evidenceSource = liveVehicle ? 'CARLA' : (syntheticMode ? 'Synthetic model' : 'Unavailable');
+    const evidenceAction = liveVehicle
+      ? (lastApply.attack_applied ? 'physical control applied' : 'waiting')
+      : (syntheticMode ? 'analytical scenario available' : 'waiting');
+    ev.innerHTML = `<strong>${attack ? pretty(snapshot.attack?.attack_name) : 'No active attack'}</strong><span>${evidenceSource}: ${evidenceAction} · ${impactLabel} · steer ${Number(ctrl.steer || 0).toFixed(2)} · throttle ${Number(ctrl.throttle || 0).toFixed(2)} · brake ${Number(ctrl.brake || 0).toFixed(2)}</span><small>${impact.message || lastApply.diagnostic_notice || (syntheticMode ? 'Run a synthetic attack scenario or connect CARLA for physical validation.' : 'Select an attack and press Apply to CARLA.')}</small>`;
   }
 
   renderDamage(snapshot);
@@ -1011,19 +1020,24 @@ setInterval(refresh, 1400);
 })();
 
 // ---------------------------------------------------------------------------
-// FINAL STRICT CARLA-BOUND UI PATCH
+// DRIVEFORT DUAL-RUNTIME UI CONTRACT
 // ---------------------------------------------------------------------------
-// Every vehicle-control widget is locked until /api/state reports a live CARLA
-// actor. This prevents the dashboard from implying fake telemetry/control.
+// CARLA-only physical controls remain locked without a live actor. Cyberattack,
+// digital-twin, defense, recovery, and benchmark workflows remain available
+// when DRIVEFORT_ALLOW_MOCK=1 enables the local synthetic engine.
 (function(){
-  const guardedButtonIds = [
-    'normalDriveBtn','applySelectedAttackTopBtn','applyLiveAttackBtn','trainBaselineTopBtn',
+  const mockCapableButtonIds = [
+    'applySelectedAttackTopBtn','applyLiveAttackBtn','trainBaselineTopBtn',
     'adaptiveRecoveryTopBtn','emergencySafeStopTopBtn','recoverVehicleBtn','recoverVehicleBtn2',
-    'carlaTickBtn','runUnprotectedScenarioBtn','runProtectedScenarioBtn','runProtectedScenarioBtn2',
-    'runCompareDemoBtn','runFinalShowcaseBtn','sendManualControlBtn','sendBatteryTamperBtn',
+    'runUnprotectedScenarioBtn','runProtectedScenarioBtn','runProtectedScenarioBtn2',
+    'runCompareDemoBtn','runFinalShowcaseBtn'
+  ];
+  const carlaOnlyButtonIds = [
+    'normalDriveBtn','carlaTickBtn','sendManualControlBtn','sendBatteryTamperBtn',
     'manualApplyBtn','manualControlBtn'
   ];
-  const guardedInputs = ['liveAttackSelect','liveAttackIntensity','manualSteer','manualThrottle','manualBrake'];
+  const mockCapableInputs = ['liveAttackSelect','liveAttackIntensity'];
+  const carlaOnlyInputs = ['manualSteer','manualThrottle','manualBrake'];
 
   function liveBound(snapshot){
     const b = snapshot?.carla_binding || {};
@@ -1031,19 +1045,17 @@ setInterval(refresh, 1400);
     return !!(b.live || (c.connected && c.actor_found && c.dashboard_bound !== false));
   }
 
-  function setGuardedDisabled(disabled, reason){
-    guardedButtonIds.forEach(id => {
+  function syntheticEnabled(snapshot){
+    return snapshot?.runtime?.mock_actions_enabled === true;
+  }
+
+  function setElementsDisabled(ids, disabled, reason){
+    ids.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       el.disabled = !!disabled;
-      el.title = disabled ? (reason || 'Connect CARLA and spawn/link a vehicle first.') : '';
+      el.title = disabled ? reason : '';
       el.classList.toggle('disabled-carla-bound', !!disabled);
-    });
-    guardedInputs.forEach(id => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.disabled = !!disabled;
-      el.title = disabled ? (reason || 'Waiting for CARLA live actor.') : '';
     });
   }
 
@@ -1051,24 +1063,39 @@ setInterval(refresh, 1400);
   render = function(snapshot){
     previousRenderStrictCarlaBound(snapshot);
     const bound = liveBound(snapshot);
-    const msg = snapshot?.carla_binding?.message || snapshot?.carla?.ui_lock_reason || 'Connect CARLA and spawn/link the ego vehicle.';
-    setGuardedDisabled(!bound, msg);
-    setText('carlaStatus', bound ? 'CARLA Live Bound ✓' : 'CARLA Required');
-    setText('telemetrySourceChip', bound ? 'CARLA live actor' : 'Locked: no fake telemetry');
-    // When CARLA is not live-bound yet, the mission rail must not show a false CRITICAL state.
+    const synthetic = !bound && syntheticEnabled(snapshot);
+    const carlaReason = snapshot?.carla_binding?.message || snapshot?.carla?.ui_lock_reason || 'Connect CARLA and spawn/link the ego vehicle.';
+    const syntheticReason = 'Start DriveFort with DRIVEFORT_ALLOW_MOCK=1, or connect CARLA for live vehicle control.';
+
+    setElementsDisabled(carlaOnlyButtonIds, !bound, carlaReason);
+    setElementsDisabled(carlaOnlyInputs, !bound, carlaReason);
+    setElementsDisabled(mockCapableButtonIds, !(bound || synthetic), syntheticReason);
+    setElementsDisabled(mockCapableInputs, !(bound || synthetic), syntheticReason);
+
+    setText('carlaStatus', bound ? 'CARLA Live Bound ✓' : (synthetic ? 'CARLA Optional' : 'CARLA Required'));
+    setText('telemetrySourceChip', bound ? 'CARLA live actor' : (synthetic ? 'DriveFort Synthetic Engine' : 'Locked: no simulation source'));
+
     // Setup-not-ready is a connection state, not an attack state.
-    if (!bound) {
+    if (!bound && !snapshot?.attack?.active) {
       setText('railRiskLevel', 'Low');
       setText('railThreatName', 'None');
       const riskEl = document.getElementById('railRiskLevel'); if (riskEl) riskEl.className = 'low';
       const threatEl = document.getElementById('railThreatName'); if (threatEl) threatEl.className = '';
     }
+
     const evidence = document.getElementById('attackEvidence');
-    if (evidence && !bound) {
-      evidence.innerHTML = '<strong>Waiting for CARLA</strong><span>All attack, steering, throttle, brake, telemetry, risk evidence, and collision claims are locked until a real CARLA ego vehicle actor is linked.</span><small>No mock vehicle motion or fake damage is displayed in strict CARLA-bound mode.</small>';
+    if (evidence && synthetic && !snapshot?.attack?.active) {
+      evidence.innerHTML = '<strong>DriveFort Synthetic Engine Active</strong><span>Attack, Digital Twin, risk, defense, recovery, evidence, and benchmark workflows are available without CARLA.</span><small>Displayed motion and impact values are analytical simulation results; connect CARLA for simulator-specific physical validation.</small>';
+    } else if (evidence && !bound && !synthetic) {
+      evidence.innerHTML = '<strong>Waiting for a simulation source</strong><span>Start with DRIVEFORT_ALLOW_MOCK=1 for local synthetic scenarios, or connect a real CARLA ego actor.</span><small>No live physical-control claims are produced while both sources are unavailable.</small>';
     }
+
     const sourceBadge = document.getElementById('carlaConnectionDetail');
-    if (sourceBadge && !bound) sourceBadge.textContent = msg;
+    if (sourceBadge && synthetic) {
+      sourceBadge.textContent = 'DriveFort Synthetic Engine active · CARLA is optional for high-fidelity validation.';
+    } else if (sourceBadge && !bound) {
+      sourceBadge.textContent = carlaReason;
+    }
   };
 })();
 
@@ -1101,7 +1128,8 @@ setInterval(refresh, 1400);
     if (!el) return;
     const label = c.last_action || 'Console status';
     const msg = c.message || 'Ready.';
-    const live = c.live_carla ? 'CARLA Live ✓' : 'CARLA Required';
+    const synthetic = snapshot?.runtime?.mock_actions_enabled === true;
+    const live = c.live_carla ? 'CARLA Live ✓' : (synthetic ? 'Synthetic Mode ✓' : 'CARLA Required');
     el.innerHTML = `<strong>${label} · ${live}</strong><br><span>${msg}</span>`;
     el.classList.toggle('console-error', ['error','blocked'].includes(String(c.status||'').toLowerCase()));
     el.classList.toggle('console-ok', ['active','armed','complete'].includes(String(c.status||'').toLowerCase()));
