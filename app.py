@@ -590,7 +590,55 @@ def pro_command_apply():
 
 @app.post("/api/protection/activate")
 def protection_activate():
-    return jsonify(engine.activate_innovative_protection())
+    before = engine.snapshot()
+    before["lifecycle"] = derive_system_phase(before)
+    attack = before.get("attack") or {}
+    attack_name = str(attack.get("attack_name") or "normal")
+    target_ecu = attack.get("target_ecu")
+
+    result = engine.activate_innovative_protection()
+
+    # In analytical/mock mode the engine can move from DETECTED to stable in a
+    # single request. Preserve the intermediate lifecycle stages explicitly so
+    # Time Machine and Incident Storyboard reconstruct the full response flow.
+    if bool(attack.get("active")):
+        observed_phase = str((before.get("lifecycle") or {}).get("phase") or "UNDER_ATTACK")
+        if observed_phase in {"UNDER_ATTACK", "DETECTED", "MITIGATING"}:
+            v3_features.record_transition(
+                before,
+                observed_phase,
+                event_type=observed_phase.lower(),
+                attack_name=attack_name,
+                target_ecu=target_ecu,
+            )
+        v3_features.record_transition(
+            before,
+            "MITIGATING",
+            event_type="mitigating",
+            attack_name=attack_name,
+            target_ecu=target_ecu,
+            summary="MITIGATING · DriveFort defenses intercepted {} and constrained unsafe commands.".format(attack_name),
+        )
+        v3_features.record_transition(
+            before,
+            "RECOVERING",
+            event_type="recovering",
+            attack_name=attack_name,
+            target_ecu=target_ecu,
+            summary="RECOVERING · Trusted control channels and safe analytical state are being restored.",
+        )
+        after = engine.snapshot()
+        after["lifecycle"] = derive_system_phase(after)
+        v3_features.record_transition(
+            after,
+            "RECOVERED",
+            event_type="recovered",
+            attack_name=attack_name,
+            target_ecu=target_ecu,
+            summary="RECOVERED · The threat was contained and the platform returned to a stable state.",
+        )
+
+    return jsonify(result)
 
 @app.post("/api/protection/unprotected_scenario")
 def protection_unprotected_scenario():

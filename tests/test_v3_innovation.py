@@ -208,3 +208,24 @@ def test_three_report_levels_export_valid_pdf_files():
         assert response.data.startswith(b"%PDF-1.4")
         assert b"%%EOF" in response.data[-64:]
         assert len(response.data) > 500
+
+
+def test_protection_records_full_time_machine_response_sequence():
+    c = client()
+    c.post("/api/v3/time-machine/clear", json={})
+    attack_response = c.post("/api/scenario/urban_attack")
+    assert attack_response.status_code == 200
+    c.get("/api/state")
+
+    protected = c.post("/api/protection/activate")
+    assert protected.status_code == 200
+
+    frames = c.get("/api/v3/time-machine?limit=30").get_json()["frames"]
+    phases = [frame.get("phase") for frame in frames]
+    assert any(phase in {"UNDER_ATTACK", "DETECTED", "MITIGATING"} for phase in phases)
+    assert "MITIGATING" in phases
+    assert "RECOVERING" in phases
+    assert "RECOVERED" in phases
+    recovered = next(frame for frame in frames if frame.get("phase") == "RECOVERED")
+    assert recovered["attack"] == "gps_spoofing"
+    assert recovered["analytical_transition"] is True

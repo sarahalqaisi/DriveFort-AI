@@ -536,6 +536,82 @@ class DriveFortV3Features:
         }
         self._timeline.append(frame)
 
+    def record_transition(
+        self,
+        snapshot: Dict[str, Any],
+        phase: str,
+        event_type: Optional[str] = None,
+        attack_name: Optional[str] = None,
+        target_ecu: Optional[str] = None,
+        summary: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Record an explicit lifecycle transition in the Time Machine.
+
+        Some analytical/mock actions complete atomically, so the next normal
+        snapshot may already be back at READY. This method preserves the
+        operator-visible MITIGATING/RECOVERING/RECOVERED stages without
+        pretending that a live CARLA frame was observed.
+        """
+        allowed = {"DISCONNECTED", "READY", "BASELINE", "UNDER_ATTACK", "DETECTED", "MITIGATING", "RECOVERING", "RECOVERED"}
+        normalized_phase = str(phase or "READY").strip().upper()
+        if normalized_phase not in allowed:
+            raise ValueError("Unsupported lifecycle phase: {}".format(phase))
+
+        with self._lock:
+            snap = _json_copy(snapshot or {})
+            lifecycle = dict(snap.get("lifecycle") or {})
+            lifecycle["phase"] = normalized_phase
+            snap["lifecycle"] = lifecycle
+
+            twin = self._ghost_twin(snap)
+            ecu_map = self._ecu_integrity(snap)
+            fusion = self._threat_fusion(snap, twin, ecu_map)
+            current_name, current_active, _intensity, current_target = self._attack(snap)
+            name = str(attack_name or current_name or "normal")
+            target = target_ecu or current_target
+            vehicle = snap.get("vehicle") or {}
+
+            normalized_event = str(event_type or normalized_phase.lower())
+            if self._timeline:
+                latest = self._timeline[-1]
+                if (
+                    latest.get("phase") == normalized_phase
+                    and latest.get("event_type") == normalized_event
+                    and latest.get("attack") == name
+                ):
+                    return _json_copy(latest)
+
+            self._event_sequence += 1
+            now = time.time()
+            frame = {
+                "frame_id": "TF-{:05d}".format(self._event_sequence),
+                "timestamp": _utc_now(),
+                "monotonic_ms": int(now * 1000),
+                "event_type": normalized_event,
+                "phase": normalized_phase,
+                "attack": name,
+                "target_ecu": target,
+                "threat_level": fusion.get("level"),
+                "threat_score": fusion.get("overall_score"),
+                "twin_deviation": twin.get("deviation_score"),
+                "collision_probability": twin.get("collision_probability"),
+                "vehicle": {
+                    "speed_kmh": round(_number(vehicle.get("speed_kmh")), 2),
+                    "steer": round(_number(vehicle.get("steer")), 3),
+                    "throttle": round(_number(vehicle.get("throttle")), 3),
+                    "brake": round(_number(vehicle.get("brake")), 3),
+                    "battery_soc": round(_number(vehicle.get("battery_soc")), 2),
+                },
+                "summary": summary or "{} · {} · threat {}% · twin drift {}%".format(
+                    normalized_phase, name, fusion.get("overall_score"), twin.get("deviation_score")
+                ),
+                "analytical_transition": not bool((snap.get("carla") or {}).get("connected")),
+            }
+            self._timeline.append(frame)
+            self._last_fingerprint = ""
+            self._last_frame_time = now
+            return _json_copy(frame)
+
     def _storyboard(self) -> Dict[str, Any]:
         frames = list(self._timeline)
         if not frames:
