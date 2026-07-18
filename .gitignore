@@ -1,0 +1,55 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Runtime data and generated reports
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+reports/
+exports/
+logs/
+*.log
+
+# CARLA/runtime artifacts
+CarlaUE4/Saved/
+*.egg
+*.whl
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build/package output
+build/
+dist/
+*.egg-info/
+*.zip
+*.tar.gz

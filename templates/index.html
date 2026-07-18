@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0B1D3A" />
+  <meta name="description" content="DriveFort AI — Secure Intelligence for Electric Mobility." />
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}" />
+  <title>DriveFort AI | EV Cyber Defense & Digital Twin Platform</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/space-grotesk/space-grotesk.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=drivefort-v3" />
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+  <div class="app-shell">
+
+    <!-- ── SIDEBAR ────────────────────────────────────────── -->
+    <aside class="side-rail glass-panel mission-rail">
+      <div class="brand-block">
+        <img src="/static/img/logo.png" class="brand-logo" alt="DriveFort AI logo" />
+        <div>
+          <strong>DRIVEFORT AI</strong>
+          <span>Secure Intelligence for Electric Mobility</span>
+        </div>
+      </div>
+
+      <div class="mission-legend" aria-label="Mission flow legend">
+        <span><b class="legend-icon done">✓</b> Completed</span>
+        <span><b class="legend-icon active">●</b> Current</span>
+        <span><b class="legend-icon pending">○</b> Pending</span>
+        <span><b class="legend-icon danger">!</b> Danger</span>
+      </div>
+
+      <nav class="rail-nav mission-flow" aria-label="DriveFort AI mission flow">
+        <a href="#mission" id="flow-setup" data-step="setup" class="flow-step active">
+          <span class="step-state pending">○</span><small>01</small><b>Setup & Connection</b>
+        </a>
+        <a href="#telemetry" id="flow-monitor" data-step="monitor" class="flow-step">
+          <span class="step-state pending">○</span><small>02</small><b>Vehicle Monitor</b>
+        </a>
+        <a href="#roleTabs" id="flow-driver" data-step="driver" class="flow-step">
+          <span class="step-state pending">○</span><small>03</small><b>Driver Control</b>
+        </a>
+        <a href="#attackConsole" id="flow-attack" data-step="attack" class="flow-step">
+          <span class="step-state pending">○</span><small>04</small><b>Attack Execution</b>
+        </a>
+        <a href="#aiSecurityLayer" id="flow-ai" data-step="ai" class="flow-step">
+          <span class="step-state pending">○</span><small>05</small><b>AI Threat Layer</b>
+        </a>
+        <a href="#finalDefenseStack" id="flow-recovery" data-step="recovery" class="flow-step">
+          <span class="step-state pending">○</span><small>06</small><b>Adaptive Recovery</b>
+        </a>
+        <a href="#evidenceRecorder" id="flow-logs" data-step="logs" class="flow-step">
+          <span class="step-state pending">○</span><small>07</small><b>Evidence & Logs</b>
+        </a>
+      </nav>
+
+      <div class="rail-status mission-state">
+        <span>CARLA</span><strong id="carlaStatus">Disconnected</strong>
+        <span>Baseline</span><strong id="railBaselineStatus">Not trained</strong>
+        <span>Drive Mode</span><strong id="railDriveMode">Autonomous</strong>
+        <span>Risk</span><strong id="railRiskLevel">Low</strong>
+        <span>Threat</span><strong id="railThreatName">None</strong>
+        <span>Phase</span><strong id="railSystemPhase">READY</strong>
+      </div>
+    </aside>
+
+    <!-- ── MAIN BOARD ─────────────────────────────────────── -->
+    <main class="main-board">
+
+      <!-- Header -->
+      <header class="top-command glass-panel" id="mission">
+        <section class="hero-copy">
+          <div class="hero-brand">
+            <img src="/static/img/logo.png" alt="DriveFort AI logo"/>
+            <div>
+              <div class="eyebrow">DRIVEFORT AI CYBERSECURITY PLATFORM</div>
+              <strong>Protect · Detect · Twin · Recover</strong>
+            </div>
+          </div>
+          <h1>EV Cybersecurity & Digital Twin Platform</h1>
+          <p>A high-fidelity cyber-physical defense platform for connected electric vehicles — monitor CARLA telemetry, detect attacks, compare digital-twin behavior, activate safe response, and preserve forensic evidence.</p>
+          <div class="status-row">
+            <div class="status-pill"><span>Threat</span><strong id="threatLevelHero">NORMAL</strong></div>
+            <div class="status-pill"><span>Scenario</span><strong id="scenarioName">Normal Drive</strong></div>
+            <div class="status-pill"><span>Defense</span><strong id="defenseMode">Normal</strong></div>
+            <div class="status-pill"><span>System Phase</span><strong id="systemPhase">READY</strong></div>
+            <div class="status-pill carla-connection-pill disconnected" id="carlaConnectionPill">
+              <div>
+                <span>CARLA Connection</span>
+                <strong id="carlaConnectionLabel">Disconnected</strong>
+                <small id="carlaConnectionDetail">Simulator not connected yet.</small>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="quick-actions" aria-label="Main workflow controls">
+          <div class="action-group">
+            <span class="group-title"><i class="fa-solid fa-plug fa-xs"></i> Simulation Control</span>
+            <button id="connectCarlaBtn" class="action primary">Connect CARLA</button>
+            <button id="spawnCarlaBtn" class="action success">Spawn Vehicle</button>
+            <button id="normalDriveBtn" class="action success">Start Normal Drive</button>
+            <button id="resetScenarioTopBtn" class="action ghost">Reset Scenario</button>
+          </div>
+          <div class="action-group">
+            <span class="group-title"><i class="fa-solid fa-steering-wheel fa-xs"></i> Driver Mode</span>
+            <button id="autonomousModeTopBtn" class="action primary">Autonomous Driving</button>
+            <button id="keyboardModeTopBtn" class="action premium">Human Keyboard Control</button>
+          </div>
+          <div class="action-group">
+            <span class="group-title"><i class="fa-solid fa-bug fa-xs"></i> Attack</span>
+            <button id="applySelectedAttackTopBtn" class="action danger">Apply Selected Attack</button>
+            <small>Uses the selected attack from the Attacker Console.</small>
+          </div>
+          <div class="action-group">
+            <span class="group-title"><i class="fa-solid fa-shield-halved fa-xs"></i> DriveFort AI Defense</span>
+            <button id="trainBaselineTopBtn" class="action">Train Baseline</button>
+            <button id="adaptiveRecoveryTopBtn" class="action success">Adaptive Recovery</button>
+            <button id="emergencySafeStopTopBtn" class="action danger ghost">Emergency Stop</button>
+          </div>
+        </section>
+      </header>
+
+      <!-- Role Tabs -->
+      <section class="role-tabs glass-panel" id="roleTabs" aria-label="DriveFort AI role tabs">
+        <button class="tab-button active" data-tab="driver"><i class="fa-solid fa-car-side"></i> Driver / Owner</button>
+        <button class="tab-button" data-tab="attacker"><i class="fa-solid fa-terminal"></i> Attacker Console</button>
+        <button class="tab-button" data-tab="defense"><i class="fa-solid fa-shield-halved"></i> DriveFort AI Defense</button>
+        <button class="tab-button" data-tab="evidence"><i class="fa-solid fa-chart-bar"></i> Evidence & Replay</button>
+        <button class="tab-button" data-tab="innovation"><i class="fa-solid fa-atom"></i> V3 Innovation Lab</button>
+      </section>
+
+      <!-- KPI Strip -->
+      <section class="kpi-strip" id="telemetry">
+        <article class="kpi-card glass-panel">
+          <span><i class="fa-solid fa-gauge-high fa-xs"></i> Speed</span>
+          <strong><em id="speedValue">0</em> km/h</strong>
+          <div class="meter"><i id="speedMeter"></i></div>
+        </article>
+        <article class="kpi-card glass-panel">
+          <span><i class="fa-solid fa-battery-three-quarters fa-xs"></i> Battery</span>
+          <strong><em id="batteryValue">0</em>%</strong>
+          <div class="meter green"><i id="batteryMeter"></i></div>
+        </article>
+        <article class="kpi-card glass-panel">
+          <span><i class="fa-solid fa-temperature-three-quarters fa-xs"></i> Battery Heat</span>
+          <strong><em id="batteryTempValue">0</em>°C</strong>
+          <div class="meter hot"><i id="batteryTempMeter"></i></div>
+        </article>
+        <article class="kpi-card glass-panel">
+          <span><i class="fa-solid fa-fire fa-xs"></i> Motor Heat</span>
+          <strong><em id="motorTempValue">0</em>°C</strong>
+          <div class="meter hot"><i id="motorTempMeter"></i></div>
+        </article>
+        <article class="kpi-card glass-panel">
+          <span><i class="fa-solid fa-triangle-exclamation fa-xs"></i> Risk Score</span>
+          <strong><em id="riskValue">0.000</em></strong>
+          <div class="meter red"><i id="riskMeter"></i></div>
+        </article>
+      </section>
+
+      <!-- Content Grid -->
+      <section class="content-grid">
+
+        <!-- 360° EV Viewer -->
+        <article class="live-card glass-panel span-7">
+          <div class="section-head">
+            <div><span class="eyebrow">2D CYBER-PHYSICAL DIGITAL TWIN</span><h2>Interactive EV Cutaway</h2></div>
+            <span id="actorBadge" class="chip">Waiting</span>
+          </div>
+          <div class="camera-stage mechanical-stage" id="cameraStage">
+            <div class="road-grid"></div>
+            <div class="camera-hud top-left">MECH 360 · Interactive EV Cutaway</div>
+            <div class="camera-hud top-right" id="mapName">Town10HD</div>
+            <div class="ev-360-toolbar">
+              <div class="ev-360-meta">
+                <span class="ev-360-badge">2D Cutaway Mode</span>
+                <strong id="ev360ViewLabel">Unified X-Ray View</strong>
+                <small>Click any subsystem to zoom, inspect, and trace attack impact</small>
+              </div>
+              <div class="ev-360-actions">
+                <button type="button" class="ev-view-btn active" data-layer="all">All Systems</button>
+                <button type="button" class="ev-view-btn" data-layer="mechanical">Mechanical</button>
+                <button type="button" class="ev-view-btn" data-layer="cyber">Cyber</button>
+                <button type="button" class="ev-view-btn" data-layer="attack">Attack Path</button>
+                <button type="button" class="ev-view-btn auto" id="ev360AutoRotateBtn">Reset Focus</button>
+              </div>
+            </div>
+            <div class="ev-360-status-strip">
+              <span id="ev360ModePill">Unified 2D X-Ray</span>
+              <span id="ev360AffectedPill">Affected: none</span>
+              <span id="ev360DefensePill">Defense: standby</span>
+            </div>
+            <div class="ev-tracker-diagram ev-360-viewer" id="teslaRender" aria-label="360° EV mechanical tracking diagram">
+              <img id="ev360Frame" src="/static/img/ev360/frame_00.png" alt="Interactive 2D EV cyber-physical cutaway" draggable="false" />
+              <button id="track-motor"    class="track-hotspot motor    component-clickable" data-component="motor"    type="button">Motor</button>
+              <button id="track-inverter" class="track-hotspot inverter component-clickable" data-component="inverter" type="button">Inverter</button>
+              <button id="track-steering" class="track-hotspot steering component-clickable" data-component="steering" type="button">Steering</button>
+              <button id="track-battery"  class="track-hotspot battery  component-clickable" data-component="battery"  type="button">Battery</button>
+              <button id="track-brakes"   class="track-hotspot brakes   component-clickable" data-component="brakes"   type="button">Brakes</button>
+              <button id="track-sensors"  class="track-hotspot sensors  component-clickable" data-component="sensors"  type="button">Sensors</button>
+              <button id="track-gps"      class="track-hotspot cyber gps component-clickable" data-component="gps" type="button">GPS</button>
+              <button id="track-camera"   class="track-hotspot cyber camera component-clickable" data-component="sensors" type="button">Front Sensor</button>
+              <button id="track-can"      class="track-hotspot cyber can component-clickable" data-component="can" type="button">ECU / CAN</button>
+              <button id="track-gateway"  class="track-hotspot cyber gateway component-clickable" data-component="gateway" type="button">Gateway</button>
+              <button id="track-hmi"      class="track-hotspot cyber hmi component-clickable" data-component="hmi" type="button">HMI</button>
+              <div class="cyber-link link-gps-can"></div>
+              <div class="cyber-link link-camera-can"></div>
+              <div class="cyber-link link-can-gateway"></div>
+              <div class="ev-360-overlay">360°</div>
+            </div>
+            <div class="attack-beam" id="attackBeam"></div>
+          </div>
+          <div class="component-detail-panel" id="componentDetailPanel" aria-live="polite">
+            <div class="component-detail-head">
+              <div><span class="eyebrow">SELECTED COMPONENT</span><h3 id="componentDetailTitle">Click a vehicle component</h3></div>
+              <span class="component-status-chip" id="componentDetailStatus">Idle</span>
+            </div>
+            <p id="componentDetailSummary">Select Motor, Brakes, Steering, Battery, Inverter, or Sensors to view the subsystem structure, related attacks, physical impact, and DriveFort AI recovery action.</p>
+            <div class="component-structure-chain" id="componentStructureChain">
+              <span>Attack</span><i>→</i><span>Component</span><i>→</i><span>Physical Impact</span><i>→</i><span>Defense</span>
+            </div>
+            <div class="component-detail-grid">
+              <div><span>Function</span><strong id="componentFunction">—</strong></div>
+              <div><span>Related attacks</span><strong id="componentAttacks">—</strong></div>
+              <div><span>Cyber impact</span><strong id="componentCyberImpact">—</strong></div>
+              <div><span>DriveFort AI defense</span><strong id="componentDefense">—</strong></div>
+            </div>
+          </div>
+          <div class="compact-controls">
+            <button id="carlaTickBtn" class="mini-action">Tick</button>
+            <button id="disconnectCarlaBtn" class="mini-action">Mock Mode</button>
+            <button id="downloadReport" class="mini-action"><i class="fa-solid fa-download fa-xs"></i> MD Report</button>
+            <button id="downloadPdfReport" class="mini-action"><i class="fa-solid fa-file-pdf fa-xs"></i> PDF Report</button>
+          </div>
+        </article>
+
+        <!-- Live Map -->
+        <article class="map-card glass-panel span-5">
+          <div class="section-head">
+            <div><span class="eyebrow">LIVE MAP</span><h2>Route & Coordinates</h2></div>
+            <span class="chip" id="zoneChip">Urban</span>
+          </div>
+          <div class="map-surface real-map-surface">
+            <div id="leafletMap" class="leaflet-map"></div>
+            <div class="map-lines fallback-map-lines"></div>
+            <div class="risk-radius" id="riskRadius"></div>
+            <div class="map-car" id="mapCar"></div>
+            <div class="map-pin pin-a">A</div>
+            <div class="map-pin pin-b">B</div>
+          </div>
+          <div class="map-info">
+            <div><span>Location</span><strong id="locationName">--</strong></div>
+            <div><span>Longitude</span><strong id="coordX">--</strong></div>
+            <div><span>Latitude</span><strong id="coordY">--</strong></div>
+            <div><span>Heading</span><strong id="headingValue">--</strong></div>
+          </div>
+        </article>
+
+        <!-- Vehicle Prototype -->
+        <article class="prototype-card glass-panel span-7 merged-hidden" id="prototype">
+          <div class="section-head">
+            <div><span class="eyebrow">VEHICLE PROTOTYPE</span><h2>Exterior + Driver Impact</h2></div>
+            <span class="chip" id="prototypeState">Healthy</span>
+          </div>
+          <div class="prototype-layout upgraded-prototype-layout">
+            <div class="vehicle-blueprint upgraded-vehicle-blueprint" id="vehicleBlueprint">
+              <img src="/static/img/ev_diagnostic_cutaway_clean.png" alt="EV diagnostic cutaway" />
+              <button class="part part-camera    component-clickable" data-component="sensors"  data-part="Front Camera / Sensor">Front Sensor</button>
+              <button class="part part-steering  component-clickable" data-component="steering" data-part="Steering System">Steering</button>
+              <button class="part part-brake     component-clickable" data-component="brakes"   data-part="Brake System">Brakes</button>
+              <button class="part part-battery   component-clickable" data-component="battery"  data-part="High-Voltage Battery Pack">Battery</button>
+              <button class="part part-gateway   component-clickable" data-component="gateway"  data-part="Gateway ECU">Gateway</button>
+              <button class="part part-can       component-clickable" data-component="can"      data-part="CAN Network">ECU / CAN</button>
+              <button class="part part-gps       component-clickable" data-component="gps"      data-part="GPS Antenna">GPS</button>
+              <button class="part part-hmi       component-clickable" data-component="hmi"      data-part="HMI / Driver Display">HMI</button>
+              <button class="part part-motor     component-clickable" data-component="motor"    data-part="Electric Motor / Drivetrain">Motor</button>
+            </div>
+            <div class="driver-cabin upgraded-driver-cabin">
+              <div class="cabin-screen" id="cabinScreen">
+                <span>OWNER DISPLAY</span>
+                <strong id="ownerDisplayStatus">Vehicle Secure</strong>
+                <small id="ownerDisplaySub">No active warning</small>
+              </div>
+              <div class="cabin-grid" id="cabinGrid"></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Diagnostics -->
+        <article class="diagnostic-card glass-panel span-5" id="diagnostics">
+          <div class="section-head">
+            <div><span class="eyebrow">OWNER ALERTS</span><h2>Attack Diagnosis</h2></div>
+            <span class="chip danger-chip" id="severityChip">NORMAL</span>
+          </div>
+          <div class="owner-notice" id="ownerNotice">Waiting for vehicle telemetry...</div>
+          <div class="damage-list" id="damageList"></div>
+        </article>
+
+        <!-- Drive State -->
+        <article class="panel-card glass-panel span-4">
+          <div class="section-head"><div><span class="eyebrow">DRIVE STATE</span><h2>Control Commands</h2></div></div>
+          <div class="mini-grid" id="controlGrid"></div>
+        </article>
+
+        <!-- Risk Radar (Chart.js) -->
+        <article class="panel-card glass-panel span-4">
+          <div class="section-head"><div><span class="eyebrow">SECURITY ENGINE</span><h2>Risk Fusion</h2></div></div>
+          <div class="risk-radar" id="riskRadar">
+            <canvas id="radarChart"></canvas>
+          </div>
+          <div class="risk-history-wrap">
+            <label>Risk Score — Last 30 s</label>
+            <canvas id="riskHistoryChart"></canvas>
+          </div>
+        </article>
+
+        <!-- Event Timeline -->
+        <article class="panel-card glass-panel span-4">
+          <div class="section-head"><div><span class="eyebrow">EVENT STREAM</span><h2>Timeline</h2></div></div>
+          <ol class="event-log" id="eventLog"></ol>
+        </article>
+
+        <!-- Vehicle Telemetry -->
+        <article class="panel-card glass-panel span-12 vehicle-telemetry-panel">
+          <div class="section-head">
+            <div><span class="eyebrow">LIVE VEHICLE TELEMETRY</span><h2>CARLA State + EV Battery Digital Twin</h2></div>
+            <span class="chip" id="telemetrySourceChip">Waiting</span>
+          </div>
+          <div class="telemetry-grid" id="vehicleTelemetryGrid"></div>
+          <div class="owner-defense-note" id="batteryTwinNote">Speed and coordinates come from CARLA when connected; battery and heat are calculated by the DriveFort AI BMS digital twin.</div>
+        </article>
+
+        <!-- Attacker Console -->
+        <article class="panel-card glass-panel span-12 attacker-console-panel" id="attackConsole">
+          <div class="section-head">
+            <div><span class="eyebrow">LIVE ATTACKER CONSOLE</span><h2>Apply Adopted Attacks Directly to CARLA</h2></div>
+            <span class="chip danger-chip" id="attackerConsoleStatus">Armed</span>
+          </div>
+          <div class="attacker-console-grid">
+            <label class="attack-field">
+              <span>Attack Type</span>
+              <select id="liveAttackSelect">
+                <option value="steering_manipulation">Steering Manipulation — التلاعب بالمقود</option>
+                <option value="brake_override">Brake Override — تجاوز الفرامل</option>
+                <option value="acceleration_injection">Acceleration Injection — حقن التسارع</option>
+                <option value="sensor_spoofing">Sensor Spoofing — انتحال الحساسات</option>
+                <option value="gps_spoofing">GPS Spoofing — انتحال GPS</option>
+                <option value="can_bus_injection">CAN Bus Injection — حقن شبكة CAN</option>
+                <option value="dos">Denial of Service (DoS) — حجب الخدمة</option>
+                <option value="lane_drift_attack">Lane Drift Attack — هجوم انحراف المسار</option>
+                <option value="pedestrian_detection_attack">Pedestrian Detection Attack — خداع كشف المشاة</option>
+              </select>
+            </label>
+            <label class="attack-field">
+              <span>Intensity &nbsp;<strong id="intensityDisplay" style="color:#fb7185">0.90</strong></span>
+              <input id="liveAttackIntensity" type="range" min="0.25" max="1" step="0.05" value="0.9" />
+            </label>
+            <button id="applyLiveAttackBtn" class="action danger"><i class="fa-solid fa-bolt"></i> Apply to CARLA</button>
+            <button id="recoverVehicleBtn" class="action success"><i class="fa-solid fa-rotate-right"></i> Recover</button>
+          </div>
+          <div class="attack-evidence" id="attackEvidence">Pick one of the 9 adopted attacks. The selected attack calls live CARLA controls, spawns a visible impact target when possible, then DriveFort AI evaluates AI risk, fail-safe defense and collision verification.</div>
+
+          <!-- Manual Takeover -->
+          <div class="manual-takeover-console">
+            <div class="manual-head">
+              <div><span class="eyebrow">ATTACKER TAKEOVER MODE</span><h3>Remote Steering / Brake / Throttle Control</h3></div>
+              <span class="chip danger-chip">Simulator Only</span>
+            </div>
+            <div class="manual-grid">
+              <label class="attack-field"><span>Steering</span><input id="manualSteer" type="range" min="-1" max="1" step="0.05" value="0" /><strong id="manualSteerVal">0.00</strong></label>
+              <label class="attack-field"><span>Throttle</span><input id="manualThrottle" type="range" min="0" max="1" step="0.05" value="0.25" /><strong id="manualThrottleVal">0.25</strong></label>
+              <label class="attack-field"><span>Brake</span><input id="manualBrake" type="range" min="0" max="1" step="0.05" value="0" /><strong id="manualBrakeVal">0.00</strong></label>
+              <button id="sendManualControlBtn" class="action danger"><i class="fa-solid fa-gamepad"></i> Send Control</button>
+            </div>
+            <div class="manual-presets">
+              <button id="presetSwerveBtn"    class="mini-action">↗ Swerve Right</button>
+              <button id="presetHardBrakeBtn" class="mini-action">⬛ Hard Brake</button>
+              <button id="presetThrottleBtn"  class="mini-action">↑ Full Throttle</button>
+              <button id="presetReleaseBtn"   class="mini-action">✕ Release Inputs</button>
+            </div>
+          </div>
+
+          <!-- BMS Attack -->
+          <div class="battery-attack-console">
+            <div class="manual-head">
+              <div><span class="eyebrow">BMS ATTACK MODE</span><h3>Battery Charge / Temperature Tampering</h3></div>
+              <span class="chip danger-chip">Digital Twin</span>
+            </div>
+            <div class="manual-grid">
+              <label class="attack-field"><span>Battery Temp Δ °C</span><input id="batteryTempDelta" type="range" min="-10" max="65" step="1" value="28" /><strong id="batteryTempDeltaVal">+28°C</strong></label>
+              <label class="attack-field"><span>Battery Charge Δ %</span><input id="batterySocDelta" type="range" min="-35" max="10" step="1" value="-12" /><strong id="batterySocDeltaVal">-12%</strong></label>
+              <label class="attack-field"><span>Tamper Mode</span>
+                <select id="batteryTamperMode">
+                  <option value="thermal_spike">Thermal Spike</option>
+                  <option value="soc_drain">SOC Drain</option>
+                  <option value="false_low_charge">False Low Charge</option>
+                  <option value="limp_mode_trigger">Limp Mode Trigger</option>
+                </select>
+              </label>
+              <button id="sendBatteryTamperBtn" class="action danger"><i class="fa-solid fa-bolt-lightning"></i> Tamper BMS</button>
+            </div>
+            <div class="attack-evidence" id="batteryTamperEvidence">Battery values are simulated EV BMS telemetry bound to CARLA speed/control behavior.</div>
+          </div>
+        </article>
+
+        <!-- Protection Comparison Lab -->
+        <article class="panel-card glass-panel span-12 protection-lab-panel" id="protectionLab">
+          <div class="section-head">
+            <div><span class="eyebrow">INNOVATIVE PROTECTION COMPARISON LAB</span><h2>Unprotected vs DriveFort AI Protected Vehicle</h2></div>
+            <span class="chip" id="protectionStatusChip">Protection Standby</span>
+          </div>
+          <p class="lab-intro">Run two CARLA scenarios: first the same attack against a normal unprotected vehicle, then activate the innovative protection layer to block the attacker, enter safe mode and recover control.</p>
+          <div class="protection-flow">
+            <button id="runUnprotectedScenarioBtn" class="action danger">1 · Attack Unprotected Vehicle</button>
+            <button id="activateProtectionBtn"     class="action premium">2 · Activate DriveFort AI Protection</button>
+            <button id="runProtectedScenarioBtn"   class="action success">3 · Attack Protected Vehicle</button>
+            <button id="runCompareDemoBtn"          class="action primary">Run Full Comparison</button>
+          </div>
+          <div class="comparison-grid">
+            <div class="comparison-card unprotected-card">
+              <span class="eyebrow">NO PROTECTION</span>
+              <h3>Attacker Controls Vehicle</h3>
+              <div id="unprotectedOutcome" class="scenario-outcome">Not run yet.</div>
+              <div id="unprotectedMetrics" class="scenario-metrics"></div>
+            </div>
+            <div class="comparison-card protected-card">
+              <span class="eyebrow">DRIVEFORT AI PROTECTED</span>
+              <h3>Attack Blocked + Safe Mode</h3>
+              <div id="protectedOutcome" class="scenario-outcome">Not run yet.</div>
+              <div id="protectedMetrics" class="scenario-metrics"></div>
+            </div>
+          </div>
+          <div class="verdict-strip" id="protectionVerdict">Run both scenarios to show the difference.</div>
+        </article>
+
+        <!-- Owner / Defense Console -->
+        <article class="panel-card glass-panel span-12 owner-console-panel">
+          <div class="section-head">
+            <div><span class="eyebrow">OWNER / DEFENSE CONSOLE</span><h2>Recovery, Safe Mode & Owner Protection</h2></div>
+            <span class="chip" id="ownerDefenseChip">Owner Control</span>
+          </div>
+          <div class="owner-console-grid">
+            <button id="recoverVehicleBtn2"        class="action success"><i class="fa-solid fa-rotate-right"></i> Recover Vehicle</button>
+            <button id="activateProtectionBtn2"    class="action premium"><i class="fa-solid fa-shield"></i> Enable Protection</button>
+            <button id="runProtectedScenarioBtn2"  class="action success">Run Protected Scenario</button>
+          </div>
+          <div class="driver-mode-console">
+            <div class="manual-head">
+              <div><span class="eyebrow">DRIVER CONTROL MODE</span><h3>Autonomous Driving or Human Keyboard Control</h3></div>
+              <span class="chip" id="driverControlChip">Autonomous</span>
+            </div>
+            <div class="driver-mode-grid">
+              <button id="autonomousModeBtn"  class="action primary"><i class="fa-solid fa-robot"></i> Autonomous</button>
+              <button id="keyboardModeBtn"    class="action premium"><i class="fa-solid fa-keyboard"></i> Keyboard Control</button>
+              <button id="keyboardStopBtn"    class="action danger"><i class="fa-solid fa-stop"></i> Keyboard Safe Stop</button>
+            </div>
+            <div class="keyboard-help" id="keyboardHelp">Keyboard mode: W accelerate · S brake · A/D steer · Space brake · R recovery. DriveFort AI safety filter remains active above driver input.</div>
+          </div>
+          <div class="owner-defense-note">Recovery controls are intentionally separated from the Attacker Console. The attacker can only inject attacks; the owner/defense side activates protection and restores safe control.</div>
+          <div class="owner-defense-note" id="consoleActionStatus"><strong>Console status:</strong> Connect CARLA and spawn the ego vehicle. Then each owner/defense action will report its live CARLA result here.</div>
+        </article>
+
+        <!-- AI Security Layer -->
+        <article class="panel-card glass-panel span-12 ai-security-panel" id="aiSecurityLayer">
+          <div class="section-head">
+            <div><span class="eyebrow">AI DRIVEFORT AI SECURITY LAYER</span><h2>Anomaly Detection · Threat Classification · Live Risk · Adaptive Recovery</h2></div>
+            <span class="chip" id="aiThreatChip">NORMAL</span>
+          </div>
+          <div class="ai-security-grid">
+            <div class="ai-score-card">
+              <span>AI Risk Score</span>
+              <strong id="aiRiskScore">0%</strong>
+              <div class="meter red"><i id="aiRiskMeter"></i></div>
+              <small id="aiConfidence">Confidence 0.00</small>
+            </div>
+            <div class="ai-classification-card">
+              <span>Threat Classification</span>
+              <strong id="aiThreatLabel">Normal</strong>
+              <p id="aiTargetComponent">Target component: none</p>
+              <p id="aiExplanation">AI layer is monitoring vehicle behavior.</p>
+            </div>
+            <div class="ai-signals-card">
+              <span>Signals</span>
+              <ul id="aiSignals"></ul>
+            </div>
+            <div class="ai-recovery-card">
+              <span>Adaptive Recovery</span>
+              <strong id="adaptiveRecoveryStatus">Standby</strong>
+              <p id="adaptiveRecoveryMessage">No adaptive recovery action yet.</p>
+              <button id="adaptiveRecoveryBtn" class="action success"><i class="fa-solid fa-rotate-right"></i> Run Recovery</button>
+              <button id="trainAiBaselineBtn" class="mini-action">Train Baseline</button>
+              <button id="runAiSelfTestBtn"   class="mini-action">AI Self-Test</button>
+              <small id="aiModelStatus">Model: waiting for telemetry</small>
+            </div>
+          </div>
+        </article>
+
+        <!-- Full Demo Panel -->
+        <article class="panel-card glass-panel span-12 full-demo-panel">
+          <div class="section-head">
+            <div><span class="eyebrow">ONE-CLICK EXECUTIVE DEMO</span><h2>Full Demo: Normal Drive → Attack → Impact Report</h2></div>
+            <span class="chip" id="fullDemoStatus">Not Run</span>
+          </div>
+          <div class="full-demo-grid">
+            <div class="demo-summary" id="fullDemoSummary">Run the full demo to capture baseline and post-attack evidence.</div>
+            <div class="before-after" id="beforeAfterMetrics"></div>
+            <ol class="demo-timeline" id="fullDemoTimeline"></ol>
+          </div>
+        </article>
+
+        <!-- Evidence Recorder -->
+        <article class="panel-card glass-panel span-12 evidence-panel" id="evidenceRecorder">
+          <div class="section-head">
+            <div><span class="eyebrow">EVIDENCE RECORDER</span><h2>Attack Proof, Severity & Recovery</h2></div>
+            <span class="chip danger-chip" id="evidenceSeverityChip">0%</span>
+          </div>
+          <div class="evidence-grid">
+            <div class="severity-ring">
+              <div id="severityRing" style="--sev:0%">
+                <strong id="severityScore">0%</strong>
+                <span id="severityLabel">NORMAL</span>
+              </div>
+            </div>
+            <div class="evidence-captures" id="evidenceCaptures"></div>
+            <div class="recovery-card">
+              <span>Recovery Status</span>
+              <strong id="recoveryStatus">Standby</strong>
+              <p id="recoveryMessage">No recovery action recorded yet.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Final Defense Stack -->
+        <article class="panel-card glass-panel span-12 final-defense-panel" id="finalDefenseStack">
+          <div class="section-head">
+            <div><span class="eyebrow">DRIVEFORT AI FINAL DEFENSE STACK</span><h2>Detection · Prevention · Sandbox · Safe Mode · Replay</h2></div>
+            <span class="chip" id="finalStackStatus">Ready</span>
+          </div>
+          <div class="final-defense-grid">
+            <div class="final-card validation-card">
+              <span>Command Validation</span>
+              <strong id="validationStatus">Monitoring</strong>
+              <p id="validationDecision">No command checked yet.</p>
+              <div class="validation-counts">
+                <b id="allowedCount">0</b><small>Allowed</small>
+                <b id="blockedCount">0</b><small>Blocked</small>
+              </div>
+            </div>
+            <div class="final-card predictive-card">
+              <span>Predictive Protection</span>
+              <strong id="predictiveScore">0%</strong>
+              <div class="meter red"><i id="predictiveMeter"></i></div>
+              <p id="predictiveRecommendation">Continue monitoring.</p>
+            </div>
+            <div class="final-card secure-card">
+              <span>Secure Communication</span>
+              <strong id="secureBusTrust">100%</strong>
+              <p id="secureBusStats">Signed 0 · Rejected 0</p>
+              <button id="toggleSecureCommBtn" class="mini-action">Toggle Secure Bus</button>
+            </div>
+            <div class="final-card awareness-card">
+              <span>Driver Awareness</span>
+              <strong id="driverAwarenessPriority">Normal</strong>
+              <p id="driverAwarenessMessage">Vehicle secure. DriveFort AI is monitoring.</p>
+              <ul id="driverAwarenessList"></ul>
+            </div>
+          </div>
+          <div class="final-actions">
+            <button id="enableSandboxBtn"   class="action premium"><i class="fa-solid fa-box"></i> Enable Sandbox</button>
+            <button id="disableSandboxBtn"  class="action">Disable Sandbox</button>
+            <button id="emergencySafeStopBtn" class="action danger"><i class="fa-solid fa-circle-stop"></i> Emergency Stop</button>
+            <button id="runFinalShowcaseBtn"  class="action success"><i class="fa-solid fa-play"></i> Final Showcase</button>
+            <button id="loadReplayBtn"        class="action primary"><i class="fa-solid fa-film"></i> Load Replay</button>
+          </div>
+          <div class="coverage-grid" id="coverageGrid"></div>
+          <div class="replay-strip" id="replayStrip">Replay frames will appear here after running attacks or the final showcase.</div>
+        </article>
+
+        <!-- DriveFort AI V3 Innovation Lab -->
+        <article class="panel-card glass-panel span-12 innovation-lab-panel" id="innovationLab" data-zone-tab="innovation">
+          <div class="section-head innovation-title-row">
+            <div><span class="eyebrow">DRIVEFORT AI V3 · 23 ADVANCED CAPABILITIES</span><h2>Twin Replay Lab · Intelligent Defense · Fleet Security</h2></div>
+            <div class="v3-title-actions"><button id="v3MissionModeBtn" class="mini-action">Mission Control View</button><span class="chip success-chip" id="v3FeatureStatus">Loading V3</span></div>
+          </div>
+          <p class="lab-intro">A modular innovation layer for time-machine replay, ghost digital twin prediction, counterfactual defense benchmarking, ECU integrity, attack chains, automated recovery, fleet intelligence and secure OTA validation.</p>
+
+          <div class="v3-kpi-grid">
+            <div class="v3-kpi"><span>Threat Fusion</span><strong id="v3ThreatFusion">0%</strong><small id="v3ThreatLevel">LOW</small></div>
+            <div class="v3-kpi"><span>Twin Drift</span><strong id="v3TwinDrift">0%</strong><small id="v3TwinStatus">SYNCHRONIZED</small></div>
+            <div class="v3-kpi"><span>DriveFort Score</span><strong id="v3OverallScore">0%</strong><small id="v3ScoreGrade">Grade —</small></div>
+            <div class="v3-kpi"><span>Evidence Chain</span><strong id="v3EvidenceVerified">0/0</strong><small id="v3EvidenceStatus">VALID</small></div>
+            <div class="v3-kpi"><span>Time Machine</span><strong id="v3TimelineCount">0</strong><small>captured frames</small></div>
+          </div>
+
+          <div class="v3-layout">
+            <section class="v3-card v3-twin-card">
+              <div class="v3-card-head"><div><span>GHOST DIGITAL TWIN</span><h3>Actual vs Expected Safe Path</h3></div><b id="v3CollisionRisk">0% collision risk</b></div>
+              <svg id="v3TwinSvg" viewBox="0 0 720 250" role="img" aria-label="Ghost digital twin path comparison">
+                <rect x="0" y="0" width="720" height="250" rx="18" class="v3-svg-bg"></rect>
+                <g id="v3TwinGrid"></g><polyline id="v3ExpectedPath" class="v3-path expected"></polyline><polyline id="v3ActualPath" class="v3-path actual"></polyline>
+              </svg>
+              <div class="v3-legend"><span><i class="expected"></i>Expected safe path</span><span><i class="actual"></i>Actual vehicle path</span></div>
+              <div id="v3Envelope" class="v3-envelope">Safety envelope loading…</div>
+            </section>
+
+            <section class="v3-card">
+              <div class="v3-card-head"><div><span>AI DECISION EXPLAINER</span><h3 id="v3Decision">Normal Operation</h3></div><b id="v3DecisionConfidence">0%</b></div>
+              <p id="v3DecisionSummary">Waiting for security telemetry.</p>
+              <ul id="v3DecisionEvidence" class="v3-evidence-list"></ul>
+              <div class="v3-copilot">
+                <label for="v3CopilotQuestion">DriveFort Copilot</label>
+                <div><input id="v3CopilotQuestion" value="Summarize the current security state for the committee." maxlength="300"/><button id="v3CopilotAskBtn" class="mini-action">Ask</button></div>
+                <p id="v3CopilotAnswer">Ask about the attack, ECU trust, protection outcome, or incident evidence.</p>
+              </div>
+            </section>
+          </div>
+
+          <div class="v3-layout three">
+            <section class="v3-card">
+              <div class="v3-card-head"><div><span>ECU IMMUNE SYSTEM</span><h3>Integrity & Virtual Backups</h3></div><b id="v3MinTrust">100%</b></div>
+              <div id="v3EcuGrid" class="v3-ecu-grid"></div>
+              <div class="v3-control-row"><select id="v3VirtualEcuSelect"><option value="steering_ecu">Steering ECU</option><option value="brake_ecu">Brake ECU</option><option value="gateway_ecu">Gateway ECU</option><option value="perception_ecu">Perception ECU</option><option value="telematics_ecu">Telematics ECU</option></select><button id="v3ActivateVirtualEcuBtn" class="mini-action">Activate Backup ECU</button></div>
+            </section>
+
+            <section class="v3-card">
+              <div class="v3-card-head"><div><span>COUNTERFACTUAL DEFENSE</span><h3>Protected vs Unprotected</h3></div><b id="v3BenchmarkStatus">Not run</b></div>
+              <div class="v3-control-row"><select id="v3BenchmarkAttack"><option value="steering_manipulation">Steering Manipulation</option><option value="brake_override">Brake Override</option><option value="gps_spoofing">GPS Spoofing</option><option value="can_bus_injection">CAN Injection</option><option value="mixed_attack">Mixed Attack</option></select><button id="v3RunBenchmarkBtn" class="mini-action">Run Benchmark</button></div>
+              <div id="v3BenchmarkGrid" class="v3-benchmark-grid"><p>Run the model to compare both outcomes.</p></div>
+            </section>
+
+            <section class="v3-card">
+              <div class="v3-card-head"><div><span>LIVE PERFORMANCE</span><h3>Safety & Resilience Score</h3></div><b id="v3PerformanceGrade">—</b></div>
+              <div id="v3PerformanceBars" class="v3-performance-bars"></div>
+            </section>
+          </div>
+
+          <div class="v3-layout three">
+            <section class="v3-card">
+              <div class="v3-card-head"><div><span>ATTACK CHAIN BUILDER</span><h3>Multi-stage Threat Campaign</h3></div><b id="v3ChainStatus">Idle</b></div>
+              <div class="v3-control-stack">
+                <button id="v3BuildChainBtn" class="mini-action">Build Default Chain</button>
+                <button id="v3AdvanceChainBtn" class="mini-action danger">Advance Attack Stage</button>
+                <button id="v3AdaptiveAttackBtn" class="mini-action">Plan Adaptive Attack</button>
+                <button id="v3StealthAttackBtn" class="mini-action">Start Stealth GPS Drift</button>
+              </div>
+              <ol id="v3AttackChain" class="v3-step-list"></ol>
+            </section>
+
+            <section class="v3-card">
+              <div class="v3-card-head"><div><span>AUTOMATIC RECOVERY</span><h3>Playbook & Incident Story</h3></div><b id="v3PlaybookStatus">Standby</b></div>
+              <div class="v3-control-row"><button id="v3PreparePlaybookBtn" class="mini-action">Prepare Playbook</button><button id="v3AdvancePlaybookBtn" class="mini-action success">Advance Recovery</button></div>
+              <ol id="v3PlaybookSteps" class="v3-step-list"></ol>
+              <div id="v3Storyboard" class="v3-storyboard"></div>
+            </section>
+
+            <section class="v3-card">
+              <div class="v3-card-head"><div><span>SCENARIO DIRECTOR</span><h3>Guided Committee Demo</h3></div><b id="v3ScenarioStatus">Ready</b></div>
+              <div class="v3-control-row"><select id="v3ScenarioSelect"><option value="gps_spoofing_demo">GPS Spoofing Detection</option><option value="steering_injection_demo">Steering Injection Containment</option><option value="mixed_attack_demo">Coordinated Mixed Attack</option><option value="protected_comparison">Protected vs Unprotected</option><option value="fleet_intelligence">Fleet Threat Intelligence</option></select></div>
+              <div class="v3-control-row"><button id="v3StartScenarioBtn" class="mini-action">Start Scenario</button><button id="v3AdvanceScenarioBtn" class="mini-action success">Advance Step</button></div>
+              <ol id="v3ScenarioSteps" class="v3-step-list"></ol>
+            </section>
+          </div>
+
+          <div class="v3-layout">
+            <section class="v3-card">
+              <div class="v3-card-head"><div><span>TIME MACHINE & ATTACK GRAPH</span><h3>Incident Reconstruction</h3></div><b id="v3GraphStatus">Standby</b></div>
+              <div id="v3Timeline" class="v3-timeline"></div>
+              <div id="v3AttackGraph" class="v3-attack-graph"></div>
+            </section>
+            <section class="v3-card">
+              <div class="v3-card-head"><div><span>FLEET COMMAND CENTER</span><h3>Cross-vehicle Threat Intelligence</h3></div><b id="v3FleetSummary">0 online</b></div>
+              <div id="v3FleetGrid" class="v3-fleet-grid"></div>
+              <div class="v3-control-row"><button id="v3ShareThreatBtn" class="mini-action">Share Threat V2V</button><button id="v3VerifyOtaBtn" class="mini-action">Verify Demo OTA Package</button></div>
+              <p id="v3FleetActionResult" class="v3-action-result">Fleet intelligence ready.</p>
+            </section>
+          </div>
+
+          <section class="v3-card v3-feature-matrix-card">
+            <div class="v3-card-head"><div><span>IMPLEMENTATION MATRIX</span><h3>All Proposed V3 Capabilities</h3></div><b id="v3FeatureCount">0/23</b></div>
+            <div id="v3FeatureMatrix" class="v3-feature-matrix"></div>
+            <div class="v3-report-links"><a href="/api/v3/report/executive/pdf" target="_blank">Executive PDF</a><a href="/api/v3/report/technical/pdf" target="_blank">Technical PDF</a><a href="/api/v3/report/forensic/pdf" target="_blank">Forensic PDF</a><a href="/api/v3/report/forensic" target="_blank">Forensic JSON</a></div>
+          </section>
+        </article>
+
+      </section><!-- /content-grid -->
+    </main>
+  </div><!-- /app-shell -->
+
+  <div id="toastHost" class="toast-host"></div>
+
+  <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+  <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v=drivefort-v3"></script>
+</body>
+</html>

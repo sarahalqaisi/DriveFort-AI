@@ -1,0 +1,13 @@
+# DriveFort AI V3 supports two runtime tracks:
+# 1) Python 3.7 for legacy CARLA 0.9.13 cp37 wheels.
+# 2) Modern Python for Docker, analytical mode, tests, and dashboard development.
+
+# Legacy CARLA / Python 3.7 track
+Flask>=2.2,<2.3; python_version < "3.8"
+Werkzeug>=2.2,<2.3; python_version < "3.8"
+Jinja2>=3.0,<3.2; python_version < "3.8"
+itsdangerous>=2.0,<2.2; python_version < "3.8"
+click>=8.0,<8.2; python_version < "3.8"
+
+# Modern Python track
+Flask>=3.0,<4; python_version >= "3.8"

@@ -1,0 +1,9 @@
+services:
+  drivefort-ai:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      DRIVEFORT_HOST: 0.0.0.0
+      DRIVEFORT_PORT: 5000
+      DRIVEFORT_DEBUG: "0"
