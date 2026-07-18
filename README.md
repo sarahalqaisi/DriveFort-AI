@@ -59,6 +59,17 @@ The V3 layer is implemented under `src/v3/` and does not add new monkey patches 
 
 ## Dashboard
 
+<p align="center">
+  <img src="docs/screenshots/drivefort-dashboard.png"
+       alt="DriveFort AI dashboard running in synthetic simulation mode"
+       width="100%">
+</p>
+
+<p align="center">
+  <em>DriveFort AI running locally in Synthetic Simulation Mode without CARLA.</em>
+</p>
+
+
 The dashboard now includes a dedicated **V3 Innovation Lab** tab with:
 
 - Actual-versus-expected digital-twin paths.
