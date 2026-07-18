@@ -41,7 +41,7 @@ def main():
 
     state = get("/api/state")
     lab = state.get("innovation_lab") or {}
-    check(lab.get("version") == "3.0.0", "V3 version missing")
+    check(lab.get("version") == "3.1.0", "V3 version missing")
     check(len(lab.get("feature_matrix") or []) == 23, "Expected 23 implemented capabilities")
 
     get("/api/v3/time-machine")
