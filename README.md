@@ -1,6 +1,27 @@
+<div align="center">
+
+<img src="static/img/drivefort-logo.png" alt="DriveFort AI Logo" width="520">
+
 # DriveFort AI V3
 
-**Secure Intelligence for Electric Mobility**
+### Secure Intelligence for Electric Mobility
+
+[![DriveFort AI CI](https://github.com/sarahalqaisi/DriveFort-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/sarahalqaisi/DriveFort-AI/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/sarahalqaisi/DriveFort-AI?label=release)](https://github.com/sarahalqaisi/DriveFort-AI/releases/latest)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.x-black)](https://flask.palletsprojects.com/)
+[![Tests](https://img.shields.io/badge/tests-43%20passing-brightgreen)](tests/)
+
+**AI-powered EV cybersecurity and digital-twin platform for threat detection, protection, recovery, and forensic analysis.**
+
+[Latest Release](https://github.com/sarahalqaisi/DriveFort-AI/releases/latest) ·
+[Features](#what-is-new-in-v3) ·
+[Installation](#runtime-tracks) ·
+[Validation](#validation)
+
+</div>
+
+---
 
 DriveFort AI is an academic cyber-physical security platform for connected electric vehicles. V3 adds a modular innovation layer above the stabilized CARLA/simulation core, providing explainable threat fusion, digital-twin prediction, attack replay, automated recovery, fleet intelligence, and secure update validation in one dashboard.
 
@@ -176,7 +197,7 @@ DRIVEFORT_ALLOW_MOCK=1 python verify_drivefort_v3.py
 
 Current result for the packaged version:
 
-- **42 automated tests passed.**
+- **43 automated tests passed.**
 - **33 offline API checks passed.**
 - Python compilation passed.
 - JavaScript syntax validation passed.
