@@ -18,7 +18,7 @@ def test_v3_overview_exposes_all_23_features():
     assert response.status_code == 200
     payload = response.get_json()
     lab = payload["innovation_lab"]
-    assert lab["version"] == "3.0.0"
+    assert lab["version"] == "3.1.0"
     assert len(lab["feature_matrix"]) == 23
     assert all(item["status"] == "implemented" for item in lab["feature_matrix"])
     assert "ghost_twin" in lab

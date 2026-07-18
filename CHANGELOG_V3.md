@@ -1,5 +1,17 @@
 # DriveFort AI V3 Changelog
 
+## 3.1.0 — 2026-07-18
+
+- Added an official Synthetic Simulation Mode that runs without CARLA.
+- Added clear CARLA Optional and Synthetic Simulation Ready interface states.
+- Completed Time Machine lifecycle recording:
+  `DETECTED → MITIGATING → RECOVERING → RECOVERED`.
+- Added regression and UI-contract tests for synthetic mode.
+- Added the official dashboard screenshot to the GitHub README.
+- Upgraded GitHub Actions to Node.js 24-compatible action versions.
+- Increased the automated test suite to 45 passing tests.
+
+
 ## New architecture
 
 - Added `src/v3/advanced_features.py` as a lock-protected service layer.

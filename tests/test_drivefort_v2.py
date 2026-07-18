@@ -13,7 +13,7 @@ def test_drivefort_brand_contract_is_exposed():
     assert data["platform"]["name"] == "DriveFort AI"
     assert data["platform"]["tagline"] == "Secure Intelligence for Electric Mobility"
     assert data["platform"]["pillars"] == ["Protect", "Detect", "Twin", "Recover"]
-    assert BRAND.version == "3.0.0"
+    assert BRAND.version == "3.1.0"
 
 
 def test_state_has_drivefort_console_and_lifecycle():
@@ -34,7 +34,7 @@ def test_health_endpoint_reports_v3_service():
     payload = response.get_json()
     assert payload["ok"] is True
     assert payload["service"] == "DriveFort AI"
-    assert payload["version"] == "3.0.0"
+    assert payload["version"] == "3.1.0"
 
 
 def test_critical_console_routes_do_not_raise_server_errors(monkeypatch):

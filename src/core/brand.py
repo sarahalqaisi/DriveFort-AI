@@ -17,7 +17,7 @@ class BrandIdentity:
     short_name: str = "DriveFort"
     tagline: str = "Secure Intelligence for Electric Mobility"
     descriptor: str = "EV Cybersecurity & Digital Twin Platform"
-    version: str = "3.0.0"
+    version: str = "3.1.0"
     pillars: Tuple[str, ...] = ("Protect", "Detect", "Twin", "Recover")
 
     def to_dict(self) -> dict:

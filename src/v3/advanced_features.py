@@ -135,7 +135,7 @@ class DriveFortV3Features:
     commands through a small service API. All mutable state is lock-protected.
     """
 
-    VERSION = "3.0.0"
+    VERSION = "3.1.0"
 
     def __init__(self, engine: Any) -> None:
         self.engine = engine
