@@ -2,87 +2,26 @@ from __future__ import annotations
 
 from flask import Blueprint, Response, jsonify, request
 
-
-def _flatten_report(value, prefix="", depth=0):
-    lines = []
-    if depth > 5:
-        return ["{}: ...".format(prefix or "value")]
-    if isinstance(value, dict):
-        for key, item in value.items():
-            label = "{} / {}".format(prefix, key) if prefix else str(key)
-            if isinstance(item, (dict, list)):
-                lines.extend(_flatten_report(item, label, depth + 1))
-            else:
-                lines.append("{}: {}".format(label, item))
-    elif isinstance(value, list):
-        for index, item in enumerate(value[:40]):
-            label = "{} [{}]".format(prefix, index)
-            if isinstance(item, (dict, list)):
-                lines.extend(_flatten_report(item, label, depth + 1))
-            else:
-                lines.append("{}: {}".format(label, item))
-    else:
-        lines.append("{}: {}".format(prefix or "value", value))
-    return lines
-
-
-def _pdf_escape(value):
-    return str(value).replace("\\", "/").replace("(", "[").replace(")", "]").encode("latin-1", "replace").decode("latin-1")[:118]
-
-
-def _report_pdf(report):
-    title = "DRIVEFORT AI V3 {} REPORT".format(str(report.get("level", "executive")).upper())
-    lines = [title, "Generated: {}".format(report.get("generated_at", "")), ""]
-    lines.extend(_flatten_report(report))
-    wrapped = []
-    for line in lines[:360]:
-        text = _pdf_escape(line)
-        while len(text) > 100:
-            wrapped.append(text[:100])
-            text = "  " + text[100:]
-        wrapped.append(text)
-    pages = [wrapped[index:index + 44] for index in range(0, max(1, len(wrapped)), 44)] or [[title]]
-
-    font_id = 3
-    page_ids = []
-    objects = {}
-    next_id = 4
-    for page_number, page_lines in enumerate(pages, 1):
-        page_id = next_id
-        content_id = next_id + 1
-        next_id += 2
-        page_ids.append(page_id)
-        text_ops = ["BT", "/F1 15 Tf", "52 794 Td", "({}) Tj".format(_pdf_escape(title)), "ET"]
-        y = 770
-        for line in page_lines:
-            size = 9
-            text_ops.extend(["BT", "/F1 {} Tf".format(size), "52 {} Td".format(y), "({}) Tj".format(_pdf_escape(line)), "ET"])
-            y -= 15
-        text_ops.extend(["BT", "/F1 8 Tf", "510 28 Td", "(Page {} of {}) Tj".format(page_number, len(pages)), "ET"])
-        stream = "\n".join(text_ops).encode("latin-1")
-        objects[page_id] = "{} 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 {} 0 R >> >> /Contents {} 0 R >> endobj\n".format(page_id, font_id, content_id).encode("latin-1")
-        objects[content_id] = b"%d 0 obj << /Length %d >> stream\n" % (content_id, len(stream)) + stream + b"\nendstream endobj\n"
-
-    kids = " ".join("{} 0 R".format(page_id) for page_id in page_ids)
-    objects[1] = b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
-    objects[2] = "2 0 obj << /Type /Pages /Kids [{}] /Count {} >> endobj\n".format(kids, len(page_ids)).encode("latin-1")
-    objects[font_id] = b"3 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n"
-
-    pdf = bytearray(b"%PDF-1.4\n")
-    offsets = [0] * (max(objects) + 1)
-    for object_id in range(1, max(objects) + 1):
-        offsets[object_id] = len(pdf)
-        pdf.extend(objects[object_id])
-    xref = len(pdf)
-    pdf.extend("xref\n0 {}\n0000000000 65535 f \n".format(len(offsets)).encode("latin-1"))
-    for object_id in range(1, len(offsets)):
-        pdf.extend("{:010d} 00000 n \n".format(offsets[object_id]).encode("latin-1"))
-    pdf.extend("trailer << /Size {} /Root 1 0 R >>\nstartxref\n{}\n%%EOF\n".format(len(offsets), xref).encode("latin-1"))
-    return bytes(pdf)
+from .advanced_features import APPROVED_ATTACKS, ECU_LABELS
+from .reporting import render_report_pdf
+from .validation import (
+    PayloadValidationError,
+    attack_stages,
+    boolean,
+    json_object,
+    number,
+    string,
+    string_list,
+    validation_error_response,
+)
 
 
 def create_v3_blueprint(features, snapshot_provider):
     bp = Blueprint("drivefort_v3", __name__, url_prefix="/api/v3")
+
+    @bp.errorhandler(PayloadValidationError)
+    def invalid_payload(error):
+        return validation_error_response(error)
 
     def snapshot():
         return snapshot_provider()
@@ -112,6 +51,7 @@ def create_v3_blueprint(features, snapshot_provider):
 
     @bp.post("/time-machine/clear")
     def time_machine_clear():
+        json_object()
         return jsonify(features.clear_timeline())
 
     @bp.get("/ghost-twin")
@@ -121,8 +61,10 @@ def create_v3_blueprint(features, snapshot_provider):
 
     @bp.post("/benchmark/run")
     def benchmark_run():
-        payload = request.get_json(silent=True) or {}
-        result = features.run_benchmark(payload.get("attack", "steering_manipulation"), payload.get("intensity", 0.92))
+        payload = json_object()
+        attack = string(payload, "attack", "steering_manipulation", choices=APPROVED_ATTACKS)
+        intensity = number(payload, "intensity", 0.92, minimum=0.05, maximum=1.0)
+        result = features.run_benchmark(attack, intensity)
         return jsonify({"ok": True, "benchmark": result})
 
     @bp.get("/benchmark")
@@ -147,8 +89,9 @@ def create_v3_blueprint(features, snapshot_provider):
 
     @bp.post("/copilot/query")
     def copilot_query():
-        payload = request.get_json(silent=True) or {}
-        return jsonify(features.copilot_query(snapshot(), payload.get("question", "")))
+        payload = json_object()
+        question = string(payload, "question", "", max_length=300)
+        return jsonify(features.copilot_query(snapshot(), question))
 
     @bp.get("/threat-fusion")
     def threat_fusion():
@@ -157,11 +100,14 @@ def create_v3_blueprint(features, snapshot_provider):
 
     @bp.post("/attack-chain/configure")
     def attack_chain_configure():
-        payload = request.get_json(silent=True) or {}
-        return jsonify({"ok": True, "attack_chain": features.configure_attack_chain(payload.get("name", ""), payload.get("stages") or [])})
+        payload = json_object()
+        name = string(payload, "name", "", max_length=80)
+        stages = attack_stages(payload, APPROVED_ATTACKS)
+        return jsonify({"ok": True, "attack_chain": features.configure_attack_chain(name, stages)})
 
     @bp.post("/attack-chain/advance")
     def attack_chain_advance():
+        json_object()
         return jsonify(features.advance_attack_chain())
 
     @bp.get("/attack-chain")
@@ -171,41 +117,45 @@ def create_v3_blueprint(features, snapshot_provider):
 
     @bp.post("/adaptive-attacker/run")
     def adaptive_attacker_run():
-        payload = request.get_json(silent=True) or {}
-        return jsonify(features.adaptive_attack(snapshot(), bool(payload.get("apply_to_engine", False))))
+        payload = json_object()
+        return jsonify(features.adaptive_attack(snapshot(), boolean(payload, "apply_to_engine", False)))
 
     @bp.post("/stealth/start")
     def stealth_start():
-        payload = request.get_json(silent=True) or {}
+        payload = json_object()
         return jsonify(features.start_stealth_attack(
-            payload.get("attack", "gps_spoofing"),
-            payload.get("intensity", 0.22),
-            bool(payload.get("apply_to_engine", False)),
+            string(payload, "attack", "gps_spoofing", choices=APPROVED_ATTACKS),
+            number(payload, "intensity", 0.22, minimum=0.05, maximum=0.38),
+            boolean(payload, "apply_to_engine", False),
         ))
 
     @bp.post("/stealth/stop")
     def stealth_stop():
+        json_object()
         return jsonify({"ok": True, "stealth_mode": features.stop_stealth_attack()})
 
     @bp.post("/virtual-ecu/activate")
     def virtual_ecu_activate():
-        payload = request.get_json(silent=True) or {}
-        return jsonify({"ok": True, "virtual_ecu": features.activate_virtual_ecu(payload.get("ecu_id", "steering_ecu"))})
+        payload = json_object()
+        ecu_id = string(payload, "ecu_id", "steering_ecu", choices=set(ECU_LABELS))
+        return jsonify({"ok": True, "virtual_ecu": features.activate_virtual_ecu(ecu_id)})
 
     @bp.post("/virtual-ecu/deactivate")
     def virtual_ecu_deactivate():
-        payload = request.get_json(silent=True) or {}
-        return jsonify(features.deactivate_virtual_ecu(payload.get("ecu_id", "steering_ecu")))
+        payload = json_object()
+        ecu_id = string(payload, "ecu_id", "steering_ecu", choices=set(ECU_LABELS))
+        return jsonify(features.deactivate_virtual_ecu(ecu_id))
 
     @bp.post("/recovery/playbook/prepare")
     def recovery_prepare():
-        payload = request.get_json(silent=True) or {}
-        return jsonify({"ok": True, "playbook": features.prepare_playbook(payload.get("attack", "steering_manipulation"))})
+        payload = json_object()
+        attack = string(payload, "attack", "steering_manipulation", choices=APPROVED_ATTACKS)
+        return jsonify({"ok": True, "playbook": features.prepare_playbook(attack)})
 
     @bp.post("/recovery/playbook/advance")
     def recovery_advance():
-        payload = request.get_json(silent=True) or {}
-        return jsonify(features.advance_playbook(bool(payload.get("execute_engine_recovery", False))))
+        payload = json_object()
+        return jsonify(features.advance_playbook(boolean(payload, "execute_engine_recovery", False)))
 
     @bp.get("/incident/storyboard")
     def incident_storyboard():
@@ -226,7 +176,7 @@ def create_v3_blueprint(features, snapshot_provider):
         report_data = features.build_report(snapshot(), level)
         filename = "drivefort_v3_{}_report.pdf".format(report_data.get("level", "executive"))
         return Response(
-            _report_pdf(report_data),
+            render_report_pdf(report_data),
             mimetype="application/pdf",
             headers={"Content-Disposition": "attachment; filename={}".format(filename)},
         )
@@ -247,11 +197,14 @@ def create_v3_blueprint(features, snapshot_provider):
 
     @bp.post("/scenario/start")
     def scenario_start():
-        payload = request.get_json(silent=True) or {}
-        return jsonify({"ok": True, "scenario_director": features.start_scenario(payload.get("scenario_id", "gps_spoofing_demo"))})
+        payload = json_object()
+        scenario_ids = {item["id"] for item in features.scenario_catalog()}
+        scenario_id = string(payload, "scenario_id", "gps_spoofing_demo", choices=scenario_ids)
+        return jsonify({"ok": True, "scenario_director": features.start_scenario(scenario_id)})
 
     @bp.post("/scenario/advance")
     def scenario_advance():
+        json_object()
         return jsonify(features.advance_scenario())
 
     @bp.get("/performance-score")
@@ -266,13 +219,18 @@ def create_v3_blueprint(features, snapshot_provider):
 
     @bp.post("/v2v/share")
     def v2v_share():
-        payload = request.get_json(silent=True) or {}
-        targets = payload.get("target_vehicle_ids")
-        return jsonify(features.share_v2v_threat(snapshot(), targets if isinstance(targets, list) else None))
+        payload = json_object()
+        targets = string_list(payload, "target_vehicle_ids", None, max_items=50)
+        return jsonify(features.share_v2v_threat(snapshot(), targets))
 
     @bp.post("/ota/verify")
     def ota_verify():
-        payload = request.get_json(silent=True) or {}
+        payload = json_object()
+        for field, maximum in (("package_name", 100), ("version", 32), ("payload", 1000000), ("sha256", 64), ("signature", 128)):
+            if field in payload:
+                string(payload, field, max_length=maximum)
+        if "include_demo_signature" in payload:
+            boolean(payload, "include_demo_signature")
         return jsonify({"ok": True, "ota": features.verify_ota(payload)})
 
     return bp
