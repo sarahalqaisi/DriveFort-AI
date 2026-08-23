@@ -19,6 +19,16 @@ from .validation import (
 def create_v3_blueprint(features, snapshot_provider):
     bp = Blueprint("drivefort_v3", __name__, url_prefix="/api/v3")
 
+    @bp.after_request
+    def secure_v3_response(response):
+        # V3 payloads contain live security and incident state. They should
+        # never be replayed from browser or intermediary caches.
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
     @bp.errorhandler(PayloadValidationError)
     def invalid_payload(error):
         return validation_error_response(error)

@@ -170,7 +170,7 @@ def test_fleet_and_v2v_threat_sharing():
 
 
 def test_ota_rejects_unsigned_and_accepts_valid_demo_signature(monkeypatch):
-    monkeypatch.setenv("DRIVEFORT_OTA_SECRET", "test-ota-secret")
+    monkeypatch.setenv("DRIVEFORT_OTA_SECRET", "test-ota-secret-at-least-32-bytes")
     monkeypatch.setenv("DRIVEFORT_ALLOW_MOCK", "1")
     monkeypatch.setenv("DRIVEFORT_OTA_DEMO_SIGNING", "1")
     c = client()

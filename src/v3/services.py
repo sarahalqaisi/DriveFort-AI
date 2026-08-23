@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import os
+import re
 import uuid
 from collections import deque
 from typing import Any, Deque, Dict
+
+from .benchmark import BenchmarkEvidenceStore, BenchmarkResult, SYNTHETIC_MODEL_VERSION
+
+
+logger = logging.getLogger(__name__)
 
 
 class ThreatFusionService:
@@ -67,6 +74,7 @@ class AttackSimulationService:
         self.copy = json_copy
         self.now = now
         self.benchmark = self.empty_benchmark()
+        self.evidence_store = BenchmarkEvidenceStore(lock)
 
     @staticmethod
     def empty_benchmark():
@@ -81,6 +89,10 @@ class AttackSimulationService:
             attack = self.safe_attack(attack)
             intensity = self.clamp(intensity, 0.05, 1.0)
             severity = self.attack_severity.get(attack, 0.8) * intensity
+            seed_material = "{}|{:.4f}|{}".format(attack, intensity, SYNTHETIC_MODEL_VERSION)
+            scenario_seed = int(hashlib.sha256(seed_material.encode("utf-8")).hexdigest()[:8], 16)
+            scenario_id = "synthetic-{}-{:08x}".format(attack, scenario_seed)
+            generated_at = self.now()
             unprotected = {
                 "detection_time_ms": None,
                 "maximum_lateral_deviation_m": round(0.8 + severity * 3.4, 2),
@@ -102,11 +114,35 @@ class AttackSimulationService:
                 "collision_risk_reduction_percent": round(unprotected["collision_probability_percent"] - protected["collision_probability_percent"], 1),
                 "trust_preserved_percent": round(unprotected["ecu_trust_loss_percent"] - protected["ecu_trust_loss_percent"], 1),
             }
+            evidence = BenchmarkResult(
+                attack_type=attack,
+                intensity=round(intensity, 2),
+                detection_latency_ms=protected["detection_time_ms"],
+                maximum_deviation_m=protected["maximum_lateral_deviation_m"],
+                stabilization_time_sec=protected["stabilization_time_sec"],
+                trust_loss_percent=protected["ecu_trust_loss_percent"],
+                protected_outcome=protected["outcome"],
+                unprotected_outcome=unprotected["outcome"],
+                source="synthetic",
+                measured=False,
+                model_version=SYNTHETIC_MODEL_VERSION,
+                scenario_id=scenario_id,
+                scenario_seed=scenario_seed,
+                generated_at=generated_at,
+                protected=protected,
+                unprotected=unprotected,
+            )
+            self.evidence_store.add(evidence)
+            metadata = evidence.metadata()
             self.benchmark.clear()
             self.benchmark.update({
                 "status": "complete", "attack": attack, "intensity": round(intensity, 2),
-                "generated_at": self.now(), "unprotected": unprotected, "protected": protected,
+                "generated_at": generated_at, "unprotected": unprotected, "protected": protected,
                 "improvement": improvement,
+                "source": metadata["source"], "measured": metadata["measured"],
+                "model_version": metadata["model_version"], "scenario_id": metadata["scenario_id"],
+                "scenario_seed": metadata["scenario_seed"], "metadata": metadata,
+                "evidence": evidence.evidence(),
                 "replay": {
                     "unprotected": [
                         {"t_ms": 0, "stage": "baseline", "risk": 5, "deviation_m": 0.0},
@@ -121,11 +157,17 @@ class AttackSimulationService:
                         {"t_ms": int(protected["stabilization_time_sec"] * 1000), "stage": "recovered", "risk": 9, "deviation_m": 0.08},
                     ],
                 },
-                "verdict": "DriveFort AI contains the scenario and materially reduces predicted unsafe motion.",
+                "verdict": "The synthetic model estimates that DriveFort AI contains the scenario and reduces predicted unsafe motion.",
                 "method": "counterfactual_digital_twin_model",
-                "physical_validation_note": "Use a live CARLA run to validate simulator-specific impact values.",
+                "physical_validation_note": "These values are analytical estimates, not measured CARLA data. Use a live instrumented CARLA run for measured simulator results.",
             })
             return self.copy(self.benchmark)
+
+    def record_carla_result(self, result):
+        """Store a future instrumented CARLA result without changing the V3 API."""
+        if not isinstance(result, BenchmarkResult) or result.source != "carla" or not result.measured:
+            raise ValueError("A measured CARLA BenchmarkResult is required.")
+        return self.evidence_store.add(result)
 
 
 class RecoveryService:
@@ -206,8 +248,9 @@ class RecoveryService:
                 if execute_engine_recovery:
                     try:
                         result = self.engine.adaptive_recovery()
-                    except Exception as exc:
-                        result = {"ok": False, "message": str(exc)}
+                    except Exception:
+                        logger.exception("V3 engine recovery failed")
+                        result = {"ok": False, "message": "Engine recovery could not be completed safely."}
                 return {"ok": True, "playbook": self.copy(self.playbook), "engine_result": self.copy(result)}
             if self.playbook.get("started_at") is None:
                 self.playbook["started_at"] = self.now()
@@ -288,26 +331,36 @@ class OTASecurityService:
     def verify(self, manifest):
         with self.lock:
             manifest = manifest or {}
-            package_name = str(manifest.get("package_name") or "drivefort-policy-update.bin")[:100]
-            version = str(manifest.get("version") or "3.0.1")[:32]
-            payload = str(manifest.get("payload") or "drivefort-demo-update")
-            claimed_hash = str(manifest.get("sha256") or "")
+            package_name = str(manifest.get("package_name") or "")[:100]
+            version = str(manifest.get("version") or "")[:32]
+            payload = str(manifest.get("payload") or "")
+            claimed_hash = str(manifest.get("sha256") or "").lower()
             actual_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
             secret_value = os.environ.get("DRIVEFORT_OTA_SECRET")
             expected_signature = ""
-            signature = str(manifest.get("signature") or "")
-            hash_ok = bool(claimed_hash) and hmac.compare_digest(claimed_hash, actual_hash)
-            compatible = version.startswith("3.")
-            configuration_ready = bool(secret_value)
+            signature = str(manifest.get("signature") or "").lower()
+            hash_format_ok = bool(re.fullmatch(r"[0-9a-f]{64}", claimed_hash))
+            signature_format_ok = bool(re.fullmatch(r"[0-9a-f]{64}", signature))
+            hash_ok = hash_format_ok and hmac.compare_digest(claimed_hash, actual_hash)
+            compatible = bool(re.fullmatch(r"3\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", version))
+            configuration_ready = bool(
+                secret_value and len(secret_value.encode("utf-8")) >= 32
+            )
             if configuration_ready:
                 expected_signature = hmac.new(secret_value.encode("utf-8"), (package_name + "|" + version + "|" + actual_hash).encode("utf-8"), hashlib.sha256).hexdigest()
-            signature_ok = configuration_ready and bool(signature) and hmac.compare_digest(signature, expected_signature)
+            signature_ok = configuration_ready and signature_format_ok and hmac.compare_digest(signature, expected_signature)
             accepted = configuration_ready and hash_ok and signature_ok and compatible
-            demo_signing_enabled = os.environ.get("DRIVEFORT_ALLOW_MOCK", "0") == "1" and os.environ.get("DRIVEFORT_OTA_DEMO_SIGNING", "0") == "1"
+            runtime_mode = os.environ.get("DRIVEFORT_RUNTIME_MODE", "").strip().lower()
+            demo_signing_enabled = (
+                runtime_mode in {"synthetic", "mock"}
+                and os.environ.get("DRIVEFORT_ALLOW_MOCK", "0") == "1"
+                and os.environ.get("DRIVEFORT_OTA_DEMO_SIGNING", "0") == "1"
+            )
             event = {
                 "event_id": "OTA-{}".format(uuid.uuid4().hex[:8].upper()), "timestamp": self.now(),
                 "package_name": package_name, "version": version, "hash_ok": hash_ok,
-                "signature_ok": signature_ok, "compatible": compatible, "accepted": accepted,
+                "hash_format_ok": hash_format_ok, "signature_ok": signature_ok,
+                "signature_format_ok": signature_format_ok, "compatible": compatible, "accepted": accepted,
                 "decision": "INSTALL_TO_CANARY" if accepted else ("CONFIGURATION_REQUIRED" if not configuration_ready else "REJECT_UPDATE"),
                 "rollback_ready": True, "configuration_ready": configuration_ready,
                 "expected_demo_signature": expected_signature if (demo_signing_enabled and bool(manifest.get("include_demo_signature"))) else None,
