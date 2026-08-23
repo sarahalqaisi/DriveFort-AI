@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import math
 import threading
 import time
@@ -18,6 +19,9 @@ from .services import (
     RecoveryService,
     ThreatFusionService,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 APPROVED_ATTACKS = {
@@ -789,8 +793,9 @@ class DriveFortV3Features:
             result = {"ok": True, "message": "Analytical stage activated."}
             try:
                 result = self.engine.apply_carla_attack_console(stage["attack"], stage["intensity"])
-            except Exception as exc:
-                result = {"ok": False, "message": "Engine stage could not be applied: {}".format(exc)}
+            except Exception:
+                logger.exception("V3 attack-chain engine action failed")
+                result = {"ok": False, "message": "Engine stage could not be applied safely."}
             history = {
                 "stage": next_index + 1, "attack": stage["attack"], "timestamp": _utc_now(),
                 "engine_ok": bool(result.get("ok")), "message": result.get("message", "Stage activated."),
@@ -820,8 +825,9 @@ class DriveFortV3Features:
             if apply_to_engine:
                 try:
                     result = self.engine.apply_carla_attack_console(attack, intensity)
-                except Exception as exc:
-                    result = {"ok": False, "message": str(exc)}
+                except Exception:
+                    logger.exception("V3 adaptive-attacker engine action failed")
+                    result = {"ok": False, "message": "Engine action could not be completed safely."}
             self._adaptive_attacker.update({"enabled": True, "status": "executed" if apply_to_engine else "planned", "last_choice": event})
             self._adaptive_attacker["history"].append(event)
             self._adaptive_attacker["history"] = self._adaptive_attacker["history"][-20:]
@@ -844,8 +850,9 @@ class DriveFortV3Features:
             if apply_to_engine:
                 try:
                     result = self.engine.apply_carla_attack_console(attack, intensity)
-                except Exception as exc:
-                    result = {"ok": False, "message": str(exc)}
+                except Exception:
+                    logger.exception("V3 stealth engine action failed")
+                    result = {"ok": False, "message": "Engine action could not be completed safely."}
             return {"stealth_mode": _json_copy(self._stealth_mode), "engine_result": _json_copy(result)}
 
     def stop_stealth_attack(self) -> Dict[str, Any]:
@@ -874,8 +881,13 @@ class DriveFortV3Features:
             result["status"] = "VALID" if result.get("integrity_verified") else "TAMPER_DETECTED"
             result["algorithm"] = "SHA-256 chained incident ledger"
             return result
-        except Exception as exc:
-            return {"checked": 0, "verified": 0, "failed": [{"error": str(exc)}], "integrity_verified": False, "status": "VERIFY_ERROR"}
+        except Exception:
+            logger.exception("V3 evidence verification failed")
+            return {
+                "checked": 0, "verified": 0,
+                "failed": [{"error": "Evidence verification could not be completed safely."}],
+                "integrity_verified": False, "status": "VERIFY_ERROR",
+            }
 
     def build_report(self, snapshot: Dict[str, Any], level: str = "executive") -> Dict[str, Any]:
         return self.reporting_service.build(snapshot, level)
