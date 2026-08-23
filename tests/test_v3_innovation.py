@@ -190,13 +190,14 @@ def test_ota_rejects_unsigned_and_accepts_valid_demo_signature(monkeypatch):
     assert accepted["decision"] == "INSTALL_TO_CANARY"
 
 
-def test_invalid_inputs_are_safely_normalized():
+def test_invalid_inputs_are_rejected_with_useful_json_errors():
     c = client()
-    benchmark = c.post("/api/v3/benchmark/run", json={"attack": "not-real", "intensity": 999}).get_json()["benchmark"]
-    assert benchmark["attack"] == "steering_manipulation"
-    assert benchmark["intensity"] == 1.0
-    virtual = c.post("/api/v3/virtual-ecu/activate", json={"ecu_id": "unknown"}).get_json()["virtual_ecu"]
-    assert virtual["replaces"] == "steering_ecu"
+    benchmark = c.post("/api/v3/benchmark/run", json={"attack": "not-real", "intensity": 999})
+    assert benchmark.status_code == 400
+    assert benchmark.get_json()["error"]["field"] == "attack"
+    virtual = c.post("/api/v3/virtual-ecu/activate", json={"ecu_id": "unknown"})
+    assert virtual.status_code == 400
+    assert virtual.get_json()["error"]["field"] == "ecu_id"
 
 
 def test_three_report_levels_export_valid_pdf_files():
