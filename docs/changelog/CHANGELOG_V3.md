@@ -1,5 +1,8 @@
 # DriveFort AI V3 Changelog
 
+> Historical release snapshot. Verification counts below describe the repository
+> at the time of the recorded V3 release and are not current validation results.
+
 ## 3.1.0 — 2026-07-18
 
 - Added an official Synthetic Simulation Mode that runs without CARLA.

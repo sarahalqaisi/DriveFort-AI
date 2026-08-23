@@ -1,3 +1,6 @@
+HISTORICAL SNAPSHOT — This file records validation performed on 2026-07-18.
+Counts and results below are not the current repository validation status.
+
 DriveFort AI V3 — GitHub Readiness Validation
 Date: 2026-07-18
 

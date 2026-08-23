@@ -297,7 +297,7 @@ validation boundary.
 - [Security policy](SECURITY.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
-- [V3 changelog](CHANGELOG_V3.md)
+- [Changelog](CHANGELOG.md)
 - [Migration from ZoneGuard](docs/MIGRATION_FROM_ZONEGUARD.md)
 
 ## License
