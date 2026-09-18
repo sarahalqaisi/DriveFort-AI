@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="static/img/drivefort-logo.png" alt="DriveFort AI logo" width="180">
+</p>
+
 # DriveFort AI
 
 **Cybersecurity and resilient defense platform for connected and electric vehicles.**
